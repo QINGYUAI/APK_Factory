@@ -12,6 +12,7 @@ import com.example.myapplication.data.db.AppDatabase
 import com.example.myapplication.engine.ActionExecutor
 import com.example.myapplication.engine.ActionRegistry
 import com.example.myapplication.engine.Debouncer
+import com.example.myapplication.engine.MiniAppRunner
 import com.example.myapplication.platform.PlatformActionContext
 import com.example.myapplication.platform.handlers.BluetoothHandler
 import com.example.myapplication.platform.handlers.DelayHandler
@@ -37,6 +38,8 @@ object ServiceLocator {
         private set
     lateinit var executor: ActionExecutor
         private set
+    lateinit var runner: MiniAppRunner
+        private set
     val debouncer = Debouncer()
 
     fun init(app: Application) {
@@ -58,5 +61,6 @@ object ServiceLocator {
         registry.register(SetRingerModeHandler(ctx))
         registry.register(ScreenshotHandler())
         executor = ActionExecutor(registry)
+        runner = MiniAppRunner(miniApps, runLogs, executor, debouncer)
     }
 }
