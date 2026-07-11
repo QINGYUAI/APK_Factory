@@ -20,6 +20,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- 响铃 / 勿扰策略 -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- 使用情况访问（特殊权限，需用户在设置中授权） -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- 打开第三方 App：声明可见性，避免 package 查询被过滤 -->
     <queries>

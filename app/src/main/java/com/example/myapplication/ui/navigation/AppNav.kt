@@ -1,18 +1,11 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 应用 Compose 导航图：列表、编辑、运行、权限占位页
+// Description: 应用 Compose 导航图：列表、编辑、运行状态、权限中心
 
 package com.example.myapplication.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,6 +13,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.myapplication.ui.editor.MiniAppEditorScreen
 import com.example.myapplication.ui.list.MiniAppListScreen
+import com.example.myapplication.ui.permissions.PermissionCenterScreen
+import com.example.myapplication.ui.run.RunStatusScreen
 
 object Routes {
     const val LIST = "list"
@@ -71,28 +66,14 @@ fun AppNav(deepLinkMiniAppId: String? = null) {
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
-            PlaceholderScreen(title = "运行页（待实现）", subtitle = "id=$id")
+            RunStatusScreen(
+                miniAppId = id,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.PERMISSIONS) {
-            PlaceholderScreen(title = "权限引导（待实现）")
-        }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(
-    title: String,
-    subtitle: String? = null,
-) {
-    Scaffold { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = if (subtitle != null) "$title\n$subtitle" else title,
+            PermissionCenterScreen(
+                onBack = { navController.popBackStack() },
             )
         }
     }
