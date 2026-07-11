@@ -130,6 +130,8 @@ fun MiniAppListScreen(
                                 ServiceLocator.miniApps.save(
                                     app.copy(enabled = enabled, updatedAt = System.currentTimeMillis()),
                                 )
+                                // 启用状态变更后同步触发器注册（含 AppOpenMonitor 启停）
+                                ServiceLocator.triggerManager.resync()
                             }
                         },
                         onRun = { onRun(app.id) },
