@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 小应用列表页：启用开关、运行、进入编辑，FAB 创建新应用
+// Description: 小应用列表页：启用开关、运行、添加到桌面、进入编辑，FAB 创建新应用
 
 package com.example.myapplication.ui.list
 
@@ -21,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -32,11 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.di.ServiceLocator
 import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.domain.model.MiniApp
+import com.example.myapplication.platform.ShortcutHelper
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -47,6 +50,7 @@ fun MiniAppListScreen(
     onRun: (String) -> Unit,
     onOpenPermissions: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val apps by ServiceLocator.miniApps.observeAll().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
@@ -129,6 +133,13 @@ fun MiniAppListScreen(
                             }
                         },
                         onRun = { onRun(app.id) },
+                        onAddToDesktop = {
+                            ShortcutHelper.requestPinShortcut(
+                                context = context,
+                                miniAppId = app.id,
+                                label = app.name,
+                            )
+                        },
                         onOpenEditor = { onOpenEditor(app.id) },
                     )
                 }
@@ -142,32 +153,45 @@ private fun MiniAppListItem(
     app: MiniApp,
     onToggleEnabled: (Boolean) -> Unit,
     onRun: () -> Unit,
+    onAddToDesktop: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpenEditor)
             .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = app.name,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = if (app.enabled) "已启用" else "已禁用",
-                style = MaterialTheme.typography.bodySmall,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = app.name,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = if (app.enabled) "已启用" else "已禁用",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = app.enabled,
+                onCheckedChange = onToggleEnabled,
             )
         }
-        Switch(
-            checked = app.enabled,
-            onCheckedChange = onToggleEnabled,
-        )
-        Button(onClick = onRun) {
-            Text("运行")
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = onRun) {
+                Text("运行")
+            }
+            OutlinedButton(onClick = onAddToDesktop) {
+                Text("添加到桌面")
+            }
         }
     }
 }

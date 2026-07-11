@@ -33,6 +33,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.myapplication.di.ServiceLocator
 import com.example.myapplication.platform.PermissionHelper
+import kotlinx.coroutines.launch
 
 private data class PermissionItem(
     val id: String,
@@ -62,11 +65,16 @@ fun PermissionCenterScreen(
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
 
+    // 从系统设置返回后刷新授权状态，并 resync 触发器（使 AppOpenMonitor 在授权后启动）
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshKey++
+                scope.launch {
+                    ServiceLocator.triggerManager.resync()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

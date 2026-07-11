@@ -52,6 +52,13 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 桌面快捷方式 / 外部 deep link：miniapp://run/{id} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="miniapp" android:host="run" />
+            </intent-filter>
         </activity>
 
         <receiver
