@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.myapplication.ui.editor.MiniAppEditorScreen
 import com.example.myapplication.ui.list.MiniAppListScreen
 
 object Routes {
@@ -60,7 +61,10 @@ fun AppNav(deepLinkMiniAppId: String? = null) {
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
-            PlaceholderScreen(title = "编辑器（待实现）", subtitle = "id=$id")
+            MiniAppEditorScreen(
+                miniAppId = id,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(
             route = Routes.RUN,
