@@ -14,6 +14,8 @@ class MiniAppRepository(private val dao: MiniAppDao) {
     fun observeAll(): Flow<List<MiniApp>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
 
+    suspend fun getAll(): List<MiniApp> = dao.getAll().map { it.toDomain() }
+
     suspend fun get(id: String): MiniApp? = dao.getById(id)?.toDomain()
 
     suspend fun save(app: MiniApp) {

@@ -15,6 +15,9 @@ interface MiniAppDao {
     @Query("SELECT * FROM mini_apps ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<MiniAppEntity>>
 
+    @Query("SELECT * FROM mini_apps ORDER BY updatedAt DESC")
+    suspend fun getAll(): List<MiniAppEntity>
+
     @Query("SELECT * FROM mini_apps WHERE id = :id")
     suspend fun getById(id: String): MiniAppEntity?
 

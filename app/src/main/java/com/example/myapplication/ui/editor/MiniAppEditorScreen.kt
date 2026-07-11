@@ -93,6 +93,7 @@ fun MiniAppEditorScreen(
                                         updatedAt = System.currentTimeMillis(),
                                     ),
                                 )
+                                ServiceLocator.triggerManager.resync()
                                 onBack()
                             }
                         },
