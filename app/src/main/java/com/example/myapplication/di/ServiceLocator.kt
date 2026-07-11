@@ -12,6 +12,11 @@ import com.example.myapplication.data.db.AppDatabase
 import com.example.myapplication.engine.ActionExecutor
 import com.example.myapplication.engine.ActionRegistry
 import com.example.myapplication.engine.Debouncer
+import com.example.myapplication.platform.PlatformActionContext
+import com.example.myapplication.platform.handlers.DelayHandler
+import com.example.myapplication.platform.handlers.NotifyHandler
+import com.example.myapplication.platform.handlers.SetVolumeHandler
+import com.example.myapplication.platform.handlers.VibrateHandler
 
 object ServiceLocator {
     lateinit var db: AppDatabase
@@ -31,7 +36,11 @@ object ServiceLocator {
         miniApps = MiniAppRepository(db.miniAppDao())
         runLogs = RunLogRepository(db.runLogDao())
         registry = ActionRegistry()
-        // handlers 在 Task 5 注册
+        val ctx = PlatformActionContext(app)
+        registry.register(DelayHandler())
+        registry.register(VibrateHandler(ctx))
+        registry.register(SetVolumeHandler(ctx))
+        registry.register(NotifyHandler(ctx))
         executor = ActionExecutor(registry)
     }
 }
