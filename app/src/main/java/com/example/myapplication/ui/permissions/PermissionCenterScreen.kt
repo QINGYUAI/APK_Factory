@@ -128,7 +128,7 @@ fun PermissionCenterScreen(
         PermissionItem(
             id = "usage",
             title = "使用情况访问",
-            description = "用于检测打开第三方 App 等场景（PACKAGE_USAGE_STATS）",
+            description = "检测打开指定第三方应用时触发小应用（appOpened）。请在系统设置中为本应用开启「使用情况访问」权限；未授权时不会轮询。",
             granted = usageGranted,
             primaryActionLabel = "去设置",
             onPrimaryAction = { PermissionHelper.openUsageAccessSettings(context) },

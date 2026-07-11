@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 触发器同步：为 schedule 注册/取消 WorkManager 周期任务
+// Description: 触发器同步：schedule（WorkManager）与 appOpened（UsageStats 轮询）对齐
 
 package com.example.myapplication.engine
 
@@ -12,17 +12,20 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.example.myapplication.data.MiniAppRepository
 import com.example.myapplication.domain.model.TriggerTypes
+import com.example.myapplication.platform.AppOpenMonitor
 import com.example.myapplication.worker.ScheduleMiniAppWorker
 import java.util.concurrent.TimeUnit
 
 /**
- * 将启用中的定时触发器与 WorkManager 对齐；事件类由 Manifest 静态 Receiver 处理。
+ * 将启用中的定时触发器与 WorkManager 对齐；事件类由 Manifest 静态 Receiver 处理；
+ * appOpened 由 [AppOpenMonitor] 在有权限时轮询 UsageStats。
  *
  * PeriodicWork 最短间隔 15 分钟：若用户配置更短，按 15 分钟入队。
  */
 class TriggerManager(
     private val app: Application,
     private val miniApps: MiniAppRepository,
+    private val appOpenMonitor: AppOpenMonitor,
 ) {
     private val workManager: WorkManager get() = WorkManager.getInstance(app)
     private val prefs by lazy {
@@ -68,6 +71,9 @@ class TriggerManager(
             workManager.cancelUniqueWork(orphan)
         }
         prefs.edit().putStringSet(KEY_SCHEDULE_NAMES, HashSet(desired)).apply()
+
+        // appOpened：有启用触发且已授予使用情况访问时启动轮询，否则停止
+        appOpenMonitor.sync(apps)
     }
 
     companion object {
