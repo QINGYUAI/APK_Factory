@@ -1,7 +1,7 @@
 # 应用工厂（MiniApp Factory）设计文档
 
 - 日期：2026-07-11
-- 状态：已确认（一期实现计划见 docs/superpowers/plans/2026-07-11-miniapp-factory.md）
+- 状态：一期已实现（分支 `feature/miniapp-factory`；截图动作为 `NEEDS_UI` 桩，Wi‑Fi 在多数机型为 `UNSUPPORTED`；计划见 docs/superpowers/plans/2026-07-11-miniapp-factory.md）
 - 工程：`D:\web\android`（现有 Kotlin + Jetpack Compose 模板工程）
 - 选定方案：方案一 — 动作插件 + 本地编排引擎
 

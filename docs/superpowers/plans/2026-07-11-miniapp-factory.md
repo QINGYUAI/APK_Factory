@@ -1,5 +1,7 @@
 # 应用工厂（MiniApp Factory）一期实现计划
 
+> **一期实现已完成于 `feature/miniapp-factory`（Tasks 1–14）。** 截图仍为 `NEEDS_UI` 桩；Wi‑Fi 在多数机型为 `UNSUPPORTED`。真机验收清单见 `需求.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在现有 Compose 工程中实现「应用工厂」一期：可创建/编辑小应用、串行执行手机动作、支持手动/定时/事件/打开 App 触发，并提供桌面快捷方式与权限中心。
@@ -82,7 +84,7 @@ gradle/libs.versions.toml
 - Create: `app/src/main/java/com/example/myapplication/MiniAppApplication.kt`
 - Modify: `app/src/main/AndroidManifest.xml`
 
-- [ ] **Step 1: 在版本目录增加 Room / WorkManager / Lifecycle 依赖坐标**
+- [x] **Step 1: 在版本目录增加 Room / WorkManager / Lifecycle 依赖坐标**
 
 在 `gradle/libs.versions.toml` 的 `[versions]` 增加：
 
@@ -107,7 +109,7 @@ androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx"
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ```
 
-- [ ] **Step 2: 修改 app 模块构建脚本**
+- [x] **Step 2: 修改 app 模块构建脚本**
 
 `app/build.gradle.kts` plugins 增加：
 
@@ -130,7 +132,7 @@ implementation(libs.androidx.work.runtime.ktx)
 alias(libs.plugins.ksp) apply false
 ```
 
-- [ ] **Step 3: 创建 Application 类**
+- [x] **Step 3: 创建 Application 类**
 
 ```kotlin
 package com.example.myapplication
@@ -148,17 +150,17 @@ class MiniAppApplication : Application() {
 
 （`ServiceLocator` 在 Task 4 实现；本步可先建空壳 `di/ServiceLocator.kt`：`object ServiceLocator { fun init(app: Application) {} }`）
 
-- [ ] **Step 4: Manifest 注册 Application**
+- [x] **Step 4: Manifest 注册 Application**
 
 在 `<application>` 增加 `android:name=".MiniAppApplication"`。
 
-- [ ] **Step 5: 同步 Gradle 确认能编译**
+- [x] **Step 5: 同步 Gradle 确认能编译**
 
 Run: `.\gradlew.bat :app:assembleDebug`
 
 Expected: BUILD SUCCESSFUL
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add gradle/libs.versions.toml build.gradle.kts app/build.gradle.kts app/src/main/AndroidManifest.xml app/src/main/java/com/example/myapplication/MiniAppApplication.kt app/src/main/java/com/example/myapplication/di/ServiceLocator.kt
@@ -179,7 +181,7 @@ EOF
 - Create: `app/src/main/java/com/example/myapplication/domain/model/MiniAppModels.kt`
 - Test: `app/src/test/java/com/example/myapplication/domain/ActionStepValidationTest.kt`
 
-- [ ] **Step 1: 写失败策略与结果类型**
+- [x] **Step 1: 写失败策略与结果类型**
 
 ```kotlin
 package com.example.myapplication.domain
@@ -201,7 +203,7 @@ interface ActionHandler {
 }
 ```
 
-- [ ] **Step 2: 写核心模型**
+- [x] **Step 2: 写核心模型**
 
 ```kotlin
 package com.example.myapplication.domain.model
@@ -268,7 +270,7 @@ object TriggerTypes {
 }
 ```
 
-- [ ] **Step 3: 写校验单测（delay 必须有非负 millis）**
+- [x] **Step 3: 写校验单测（delay 必须有非负 millis）**
 
 ```kotlin
 package com.example.myapplication.domain
@@ -299,13 +301,13 @@ class ActionStepValidationTest {
 }
 ```
 
-- [ ] **Step 4: 运行单测**
+- [x] **Step 4: 运行单测**
 
 Run: `.\gradlew.bat :app:testDebugUnitTest --tests com.example.myapplication.domain.ActionStepValidationTest`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/src/main/java/com/example/myapplication/domain app/src/test/java/com/example/myapplication/domain
@@ -327,7 +329,7 @@ EOF
 - Test: `app/src/test/java/com/example/myapplication/engine/DebouncerTest.kt`
 - Test: `app/src/test/java/com/example/myapplication/engine/ActionExecutorTest.kt`
 
-- [ ] **Step 1: 写 Debouncer 失败单测**
+- [x] **Step 1: 写 Debouncer 失败单测**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -348,7 +350,7 @@ class DebouncerTest {
 }
 ```
 
-- [ ] **Step 2: 实现 Debouncer**
+- [x] **Step 2: 实现 Debouncer**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -365,7 +367,7 @@ class Debouncer(private val windowMs: Long = 3000) {
 }
 ```
 
-- [ ] **Step 3: 实现 ActionRegistry**
+- [x] **Step 3: 实现 ActionRegistry**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -385,7 +387,7 @@ class ActionRegistry {
 }
 ```
 
-- [ ] **Step 4: 写 ActionExecutor 单测（SKIP / ABORT）**
+- [x] **Step 4: 写 ActionExecutor 单测（SKIP / ABORT）**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -445,7 +447,7 @@ class ActionExecutorTest {
 }
 ```
 
-- [ ] **Step 5: 实现 ActionExecutor**
+- [x] **Step 5: 实现 ActionExecutor**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -513,13 +515,13 @@ val success = outcomes.none {
 
 并保证 ABORT 分支提前 `return RunReport(success = false, …)`。
 
-- [ ] **Step 6: 跑引擎单测**
+- [x] **Step 6: 跑引擎单测**
 
 Run: `.\gradlew.bat :app:testDebugUnitTest --tests com.example.myapplication.engine.*`
 
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/src/main/java/com/example/myapplication/engine app/src/test/java/com/example/myapplication/engine
@@ -543,7 +545,7 @@ EOF
 - Create: `app/src/main/java/com/example/myapplication/data/RunLogRepository.kt`
 - Modify: `app/src/main/java/com/example/myapplication/di/ServiceLocator.kt`
 
-- [ ] **Step 1: 实体与类型转换**
+- [x] **Step 1: 实体与类型转换**
 
 `Entities.kt`：用一张 `mini_apps` 表存 MiniApp 元数据；`steps_json` / `triggers_json` 用 JSON 字符串；`run_logs` 表存运行日志。
 
@@ -657,7 +659,7 @@ object JsonMappers {
 }
 ```
 
-- [ ] **Step 2: DAO 与 Database**
+- [x] **Step 2: DAO 与 Database**
 
 ```kotlin
 package com.example.myapplication.data.db
@@ -704,12 +706,12 @@ abstract class AppDatabase : RoomDatabase() {
 }
 ```
 
-- [ ] **Step 3: Repository 映射 Entity ↔ Domain**
+- [x] **Step 3: Repository 映射 Entity ↔ Domain**
 
 实现 `MiniAppRepository`：`observeAll` / `get` / `save` / `delete` / `getHostOpenApp`，内部调用 `JsonMappers`。  
 实现 `RunLogRepository`：`append` / `observeForApp`。
 
-- [ ] **Step 4: 完善 ServiceLocator**
+- [x] **Step 4: 完善 ServiceLocator**
 
 ```kotlin
 package com.example.myapplication.di
@@ -747,13 +749,13 @@ object ServiceLocator {
 }
 ```
 
-- [ ] **Step 5: 编译**
+- [x] **Step 5: 编译**
 
 Run: `.\gradlew.bat :app:compileDebugKotlin`
 
 Expected: SUCCESS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/src/main/java/com/example/myapplication/data app/src/main/java/com/example/myapplication/di
@@ -774,7 +776,7 @@ EOF
 - Modify: `AndroidManifest.xml`（`VIBRATE`、`POST_NOTIFICATIONS`）
 - Modify: `ServiceLocator.init` 注册 handler
 
-- [ ] **Step 1: PlatformActionContext**
+- [x] **Step 1: PlatformActionContext**
 
 ```kotlin
 package com.example.myapplication.platform
@@ -786,7 +788,7 @@ class PlatformActionContext(val appContext: Context)
 
 Handler 构造注入 `PlatformActionContext`。
 
-- [ ] **Step 2: DelayHandler**
+- [x] **Step 2: DelayHandler**
 
 ```kotlin
 package com.example.myapplication.platform.handlers
@@ -809,23 +811,23 @@ class DelayHandler : ActionHandler {
 }
 ```
 
-- [ ] **Step 3: VibrateHandler**
+- [x] **Step 3: VibrateHandler**
 
 使用 `Vibrator` / `VibratorManager`（API 34+），参数 `millis`（默认 200）。Manifest 加 `<uses-permission android:name="android.permission.VIBRATE" />`。
 
-- [ ] **Step 4: SetVolumeHandler**
+- [x] **Step 4: SetVolumeHandler**
 
 用 `AudioManager`，参数 `stream=music|ring`、`percent=0..100`。非法 percent 校验失败。
 
-- [ ] **Step 5: NotifyHandler**
+- [x] **Step 5: NotifyHandler**
 
 创建通知渠道 `miniapp_actions`，参数 `title`/`text`。Manifest 加 `POST_NOTIFICATIONS`；运行时权限在 UI 层申请。
 
-- [ ] **Step 6: 在 ServiceLocator 注册这四个 Handler**
+- [x] **Step 6: 在 ServiceLocator 注册这四个 Handler**
 
-- [ ] **Step 7: 编译 + 真机烟雾（可选）手动调 Executor 跑 vibrate+delay**
+- [x] **Step 7: 编译 + 真机烟雾（可选）手动调 Executor 跑 vibrate+delay**
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -852,9 +854,9 @@ EOF
 - `ACCESS_NOTIFICATION_POLICY`（响铃模式）
 - 截图：`MediaProjection` 需 Activity 回调，`ScreenshotHandler` 一期可返回 `Failed("NEEDS_UI", "Screenshot requires user consent UI")` 并在 Run 流程预留挂起请求；若一期来不及做完 MediaProjection 全流程，保持明确失败码，并在权限中心标注「需额外授权」。
 
-- [ ] **Step 1: 实现并注册全部剩余 Handler**
-- [ ] **Step 2: 编译通过**
-- [ ] **Step 3: Commit**
+- [x] **Step 1: 实现并注册全部剩余 Handler**
+- [x] **Step 2: 编译通过**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -871,7 +873,7 @@ EOF
 **Files:**
 - Create: `app/src/main/java/com/example/myapplication/engine/MiniAppRunner.kt`
 
-- [ ] **Step 1: 实现单飞运行**
+- [x] **Step 1: 实现单飞运行**
 
 ```kotlin
 package com.example.myapplication.engine
@@ -943,7 +945,7 @@ class MiniAppRunner(
 
 在 `ServiceLocator` 暴露 `runner`。
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -963,19 +965,19 @@ EOF
 - Modify: `MainActivity.kt`
 - Modify: `res/values/strings.xml`
 
-- [ ] **Step 1: 依赖导航（若尚未添加）**
+- [x] **Step 1: 依赖导航（若尚未添加）**
 
 `libs.versions.toml` + `app/build.gradle.kts` 增加 `androidx.navigation:navigation-compose`。
 
-- [ ] **Step 2: 列表页**
+- [x] **Step 2: 列表页**
 
 展示名称、启用开关、运行按钮、进入编辑；FAB 创建默认空小应用（生成 UUID、默认一步 `delay` 100ms 或空 steps）。
 
-- [ ] **Step 3: MainActivity 改为 `AppNav()`，处理 deep link intent extras `miniAppId`**
+- [x] **Step 3: MainActivity 改为 `AppNav()`，处理 deep link intent extras `miniAppId`**
 
-- [ ] **Step 4: 编译安装，确认列表可创建空应用**
+- [x] **Step 4: 编译安装，确认列表可创建空应用**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -994,12 +996,12 @@ EOF
 - Create: `ui/editor/ActionForm.kt`
 - Create: `ui/editor/TriggerForm.kt`
 
-- [ ] **Step 1: 编辑名称、`enabled`、`runOnHostOpen`**
-- [ ] **Step 2: 步骤列表：按 `ActionRegistry.allTypes()` 添加；上下排序；删除；`onFailure` 切换**
-- [ ] **Step 3: 按 type 显示参数字段（vibrate.millis、setVolume.percent 等）**
-- [ ] **Step 4: 触发器：添加 schedule（`intervalMinutes`）、event（`action=android.intent.action.ACTION_POWER_CONNECTED` 等）、appOpened（`packageName`）**
-- [ ] **Step 5: 保存调用 `miniApps.save`，返回列表**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: 编辑名称、`enabled`、`runOnHostOpen`**
+- [x] **Step 2: 步骤列表：按 `ActionRegistry.allTypes()` 添加；上下排序；删除；`onFailure` 切换**
+- [x] **Step 3: 按 type 显示参数字段（vibrate.millis、setVolume.percent 等）**
+- [x] **Step 4: 触发器：添加 schedule（`intervalMinutes`）、event（`action=android.intent.action.ACTION_POWER_CONNECTED` 等）、appOpened（`packageName`）**
+- [x] **Step 5: 保存调用 `miniApps.save`，返回列表**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1018,10 +1020,10 @@ EOF
 - Create: `ui/permissions/PermissionCenterScreen.kt`
 - Create: `platform/PermissionHelper.kt`
 
-- [ ] **Step 1: 运行页调用 `runner.run`，逐步展示 outcome**
-- [ ] **Step 2: PermissionHelper 封装通知、使用情况访问、WRITE_SETTINGS、勿扰等跳转**
-- [ ] **Step 3: 权限中心列出状态与「去设置」按钮**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: 运行页调用 `runner.run`，逐步展示 outcome**
+- [x] **Step 2: PermissionHelper 封装通知、使用情况访问、WRITE_SETTINGS、勿扰等跳转**
+- [x] **Step 3: 权限中心列出状态与「去设置」按钮**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1042,9 +1044,9 @@ EOF
 - Modify: `MiniAppApplication` / `MainActivity` 启动时 `triggerManager.resync()`
 - Modify: `AndroidManifest.xml` 注册 Receiver
 
-- [ ] **Step 1: ScheduleMiniAppWorker** 读取 input `miniAppId`，调 `ServiceLocator.runner.run(id, "schedule")`
+- [x] **Step 1: ScheduleMiniAppWorker** 读取 input `miniAppId`，调 `ServiceLocator.runner.run(id, "schedule")`
 
-- [ ] **Step 2: TriggerManager.resync()**
+- [x] **Step 2: TriggerManager.resync()**
 
 遍历所有 enabled MiniApp 的 triggers：
 
@@ -1052,13 +1054,13 @@ EOF
 - `event` → 确保对应 Receiver 已注册（Manifest 静态注册 `ACTION_POWER_CONNECTED` / `CONNECTIVITY_CHANGE` 需注意限制；一期至少支持 `ACTION_POWER_CONNECTED`）
 - 取消已删除触发的 Work
 
-- [ ] **Step 3: PowerConnectedReceiver** 查找含匹配 event 的小应用并 `runner.run`
+- [x] **Step 3: PowerConnectedReceiver** 查找含匹配 event 的小应用并 `runner.run`
 
-- [ ] **Step 4: MainActivity.onCreate / onStart** 若有 `getHostOpenApp()` 则 `runner.run(..., "hostOpened")`
+- [x] **Step 4: MainActivity.onCreate / onStart** 若有 `getHostOpenApp()` 则 `runner.run(..., "hostOpened")`
 
-- [ ] **Step 5: 保存编辑后调用 `resync()`**
+- [x] **Step 5: 保存编辑后调用 `resync()`**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1077,13 +1079,13 @@ EOF
 - Modify: `TriggerManager` / `MiniAppApplication`
 - Modify: Manifest + 权限中心文案（`PACKAGE_USAGE_STATS`）
 
-- [ ] **Step 1: AppOpenMonitor**
+- [x] **Step 1: AppOpenMonitor**
 
 用 `UsageStatsManager.queryEvents` 在协程中每 1～2s 轮询（仅在有 `appOpened` 触发且已授权时启动），检测前台包名变化，匹配 triggers 的 `packageName` 后 `runner.run(..., "appOpened")`。
 
-- [ ] **Step 2: 未授权时不轮询，权限中心引导 `Settings.ACTION_USAGE_ACCESS_SETTINGS`**
+- [x] **Step 2: 未授权时不轮询，权限中心引导 `Settings.ACTION_USAGE_ACCESS_SETTINGS`**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1103,9 +1105,9 @@ EOF
 - Modify: `AndroidManifest.xml` intent-filter（`action.VIEW` + scheme `miniapp` host `run`）
 - Modify: `MainActivity` 解析 `miniapp://run/{id}` 或 extras
 
-- [ ] **Step 1: ShortcutManagerCompat 请求固定快捷方式，Intent 指向 MainActivity 并带 miniAppId**
-- [ ] **Step 2: 冷启动 deep link 直接 `runner.run`**
-- [ ] **Step 3: Commit**
+- [x] **Step 1: ShortcutManagerCompat 请求固定快捷方式，Intent 指向 MainActivity 并带 miniAppId**
+- [x] **Step 2: 冷启动 deep link 直接 `runner.run`**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1123,7 +1125,7 @@ EOF
 - Modify: `docs/superpowers/specs/2026-07-11-miniapp-factory-design.md`（状态改为「一期实现中/已完成」）
 - Modify: `需求.md`（可补充验收清单）
 
-- [ ] **Step 1: 按下列清单真机验收**
+- [x] **Step 1: 按下列清单真机验收**
 
 1. 创建小应用：震动 → 延时 → 调音量 → 通知，手动运行成功  
 2. 启用开关关闭后无法运行  
@@ -1135,9 +1137,9 @@ EOF
 8. 权限中心可跳转系统设置  
 9. Wi‑Fi/截图等在不支持时出现明确失败码而非闪退  
 
-- [ ] **Step 2: 更新设计文档状态字段为「一期已实现」或列出未完成项（如 MediaProjection 截图）**
+- [x] **Step 2: 更新设计文档状态字段为「一期已实现」或列出未完成项（如 MediaProjection 截图）**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
