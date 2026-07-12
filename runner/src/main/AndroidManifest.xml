@@ -47,7 +47,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 全类名保留：导出改包名时不改写，便于工厂推送配置 -->
+        <!-- 全类名保留：导出改包名时不改写；action 使用固定 apkfactory 前缀避免被改写 -->
         <activity
             android:name="com.example.minirunner.ConfigSyncActivity"
             android:exported="true"
@@ -55,9 +55,10 @@
             android:excludeFromRecents="true"
             android:taskAffinity="">
             <intent-filter>
-                <action android:name="com.example.minirunner.action.APPLY_CONFIG" />
+                <action android:name="com.apkfactory.action.APPLY_MINIAPP_CONFIG" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/zip" />
+                <data android:scheme="content" android:mimeType="application/zip" />
             </intent-filter>
         </activity>
 

@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +45,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -61,11 +64,14 @@ import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.engine.RunReport
 import com.example.myapplication.engine.StepOutcome
 import com.example.myapplication.platform.MiniAppConfigStore
+import com.example.myapplication.platform.RuntimeEffectTracker
 import com.example.myapplication.platform.media.MediaPlaybackController
+import com.example.myapplication.platform.media.MediaPlaybackUiState
 import com.example.myapplication.ui.editor.actionIcon
 import com.example.myapplication.ui.editor.actionTitleZh
 import com.example.myapplication.ui.icons.AppIconCatalog
 import com.example.myapplication.ui.media.MediaControlBar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -142,21 +148,46 @@ private val PanelShape = RoundedCornerShape(14.dp)
 
 @Composable
 private fun RunnerScreen(miniApp: MiniApp) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var running by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<RunReport?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var runJob by remember { mutableStateOf<Job?>(null) }
+    var autoStarted by remember { mutableStateOf(false) }
+    val mediaState by MediaPlaybackController.state.collectAsState()
+    val torchOn by RuntimeEffectTracker.flashlightOn.collectAsState()
+    val activeEffects = remember(running, mediaState, torchOn) {
+        RuntimeEffectTracker.listActive(
+            actionChainRunning = running,
+            mediaState = mediaState,
+            torchOn = torchOn,
+        )
+    }
 
-    fun stopNow() {
-        runJob?.cancel()
-        MediaPlaybackController.stop()
+    fun stopRunningFeatures() {
+        val targets = activeEffects.map { it.kind }
+        if (targets.isEmpty()) {
+            Toast.makeText(context, "当前没有正在运行的效果", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val closed = RuntimeEffectTracker.stop(
+            context = context,
+            targets = targets,
+            cancelActionChain = { runJob?.cancel() },
+        )
+        Toast.makeText(
+            context,
+            if (closed.isEmpty()) "未能关闭运行中的效果"
+            else "已关闭：${closed.joinToString("、")}",
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     fun runNow() {
         if (running) return
         runJob?.cancel()
-        MediaPlaybackController.stop()
+        runCatching { MediaPlaybackController.stop() }
         runJob = scope.launch {
             running = true
             error = null
@@ -166,6 +197,12 @@ private fun RunnerScreen(miniApp: MiniApp) {
                     RunnerApplication.instance.executor.run(miniApp.steps)
                 }
                 report = result
+            } catch (_: CancellationException) {
+                report = RunReport(
+                    success = false,
+                    stopped = true,
+                    stepOutcomes = emptyList(),
+                )
             } catch (e: Exception) {
                 error = e.message ?: "执行失败"
             } finally {
@@ -176,7 +213,8 @@ private fun RunnerScreen(miniApp: MiniApp) {
     }
 
     LaunchedEffect(miniApp.id) {
-        if (miniApp.steps.isNotEmpty() && miniApp.enabled) {
+        if (!autoStarted && miniApp.steps.isNotEmpty() && miniApp.enabled) {
+            autoStarted = true
             runNow()
         }
     }
@@ -242,17 +280,49 @@ private fun RunnerScreen(miniApp: MiniApp) {
             MediaControlBar()
         }
 
-        item(key = "actions") {
-            if (running) {
-                Button(
-                    onClick = { stopNow() },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Error),
-                ) {
-                    Icon(Icons.Filled.Stop, contentDescription = null)
-                    Text("停止动作链", modifier = Modifier.padding(start = 6.dp))
+        item(key = "active-effects") {
+            Panel {
+                Text("当前运行效果", style = MaterialTheme.typography.titleMedium, color = OnBg)
+                if (activeEffects.isEmpty()) {
+                    Text("暂无正在运行的效果", color = Muted)
+                } else {
+                    activeEffects.forEach { effect ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            StatusChip(text = effect.titleZh, active = true)
+                            Text(
+                                text = effect.detail,
+                                color = Muted,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
-            } else {
+            }
+        }
+
+        item(key = "actions") {
+            Button(
+                onClick = { stopRunningFeatures() },
+                enabled = activeEffects.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Error),
+            ) {
+                Icon(Icons.Filled.PowerSettingsNew, contentDescription = null)
+                Text(
+                    text = if (activeEffects.isEmpty()) {
+                        "关闭当前运行"
+                    } else {
+                        "关闭当前运行（${activeEffects.size}）"
+                    },
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+            if (!running) {
                 Button(
                     onClick = { runNow() },
                     enabled = miniApp.steps.isNotEmpty(),
@@ -269,6 +339,11 @@ private fun RunnerScreen(miniApp: MiniApp) {
                     )
                 }
             }
+            Text(
+                text = "只会关闭上方列出的运行中效果，不会退出应用",
+                color = Muted,
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
 
         when {
@@ -281,7 +356,7 @@ private fun RunnerScreen(miniApp: MiniApp) {
             running -> item(key = "running") {
                 Panel {
                     Text("正在执行动作链…", style = MaterialTheme.typography.titleMedium, color = OnBg)
-                    Text("可停止动作链；媒体可单独暂停/停止", color = Muted)
+                    Text("点「关闭当前运行」可立即停止动作与媒体", color = Muted)
                 }
             }
             report != null -> {

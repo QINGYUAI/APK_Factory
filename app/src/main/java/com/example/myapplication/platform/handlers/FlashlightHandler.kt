@@ -11,6 +11,7 @@ import com.example.myapplication.domain.ActionHandler
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.platform.PlatformActionContext
+import com.example.myapplication.platform.RuntimeEffectTracker
 
 class FlashlightHandler(
     private val ctx: PlatformActionContext,
@@ -37,6 +38,7 @@ class FlashlightHandler(
                 chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             } ?: return ActionResult.Failed("NO_FLASH", "当前设备没有闪光灯")
             cameraManager.setTorchMode(cameraId, enabled)
+            RuntimeEffectTracker.setFlashlightOn(enabled)
             ActionResult.Success
         } catch (e: SecurityException) {
             ActionResult.Failed("NO_PERMISSION", "手电筒权限被拒绝")

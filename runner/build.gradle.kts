@@ -19,6 +19,7 @@ val syncSharedSources by tasks.registering(Sync::class) {
             "**/platform/MediaUriHelper.kt",
             "**/platform/MiniAppConfigStore.kt",
             "**/platform/ConfigSyncContract.kt",
+            "**/platform/RuntimeEffectTracker.kt",
             "**/platform/media/**",
             "**/platform/handlers/**",
             "**/ui/icons/AppIconCatalog.kt",

@@ -36,6 +36,16 @@ object MiniAppConfigStore {
         }
     }
 
+    /** 独立小应用内一键关闭：本地覆盖为停用，避免下次自动执行。 */
+    fun disableLocally(context: Context, app: MiniApp) {
+        val updated = app.copy(
+            enabled = false,
+            updatedAt = System.currentTimeMillis(),
+        )
+        configDir(context).mkdirs()
+        overrideJsonFile(context).writeText(JsonMappers.miniAppToJson(updated), Charsets.UTF_8)
+    }
+
     fun clearOverride(context: Context) {
         configDir(context).deleteRecursively()
     }

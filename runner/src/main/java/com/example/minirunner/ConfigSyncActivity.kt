@@ -31,8 +31,8 @@ class ConfigSyncActivity : Activity() {
         if (ok.isSuccess) {
             val name = intent?.getStringExtra(ConfigSyncContract.EXTRA_MINI_APP_NAME).orEmpty()
             finishWithToast(
-                if (name.isBlank()) "配置已同步，下次打开生效"
-                else "「$name」配置已同步，下次打开生效",
+                if (name.isBlank()) "配置已同步，请重新打开小应用生效"
+                else "「$name」配置已同步，请重新打开小应用生效",
             )
         } else {
             finishWithToast("同步失败：${ok.exceptionOrNull()?.message ?: "未知错误"}")

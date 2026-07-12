@@ -40,6 +40,8 @@ object ExportIdentity {
 
     fun shouldRewriteManifestValue(value: String): Boolean {
         if (value in KEEP_COMPONENT_NAMES) return false
+        // 固定跨包 action，禁止随 applicationId 改写
+        if (value.startsWith("com.apkfactory.")) return false
         if (value == TEMPLATE_PACKAGE) return true
         return value.startsWith("$TEMPLATE_PACKAGE.")
     }

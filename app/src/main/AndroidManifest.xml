@@ -43,8 +43,15 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <intent>
-            <action android:name="com.example.minirunner.action.APPLY_CONFIG" />
+            <action android:name="com.apkfactory.action.APPLY_MINIAPP_CONFIG" />
+        </intent>
+        <intent>
+            <action android:name="com.apkfactory.action.APPLY_MINIAPP_CONFIG" />
             <data android:mimeType="application/zip" />
+        </intent>
+        <intent>
+            <action android:name="com.apkfactory.action.APPLY_MINIAPP_CONFIG" />
+            <data android:scheme="content" android:mimeType="application/zip" />
         </intent>
     </queries>
 
