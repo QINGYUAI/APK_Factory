@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">迷你应用</string>
+    <!-- 仅导出模板默认名；真正安装时由应用工厂改写为小应用名称 -->
+    <string name="app_name">迷你应用模板</string>
 </resources>

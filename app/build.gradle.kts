@@ -20,6 +20,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // 桌面显示名来自 res/values/strings.xml → 应用工厂
     }
 
     buildTypes {
@@ -57,8 +58,8 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
-    // 导出 APK 重签名
     implementation("com.android.tools.build:apksig:8.7.3")
+    implementation("io.github.reandroid:ARSCLib:1.4.0")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
@@ -68,14 +69,79 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
-// 将 runner debug APK 同步为导出模板
+val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+val runnerProjectDir = rootProject.layout.projectDirectory.dir("runner")
+val runnerApk = runnerProjectDir.file("build/outputs/apk/debug/runner-debug.apk")
+val templateOutDir = layout.projectDirectory.dir("src/main/assets/templates")
+
+/** 把主工程 SDK 配置同步给独立 runner 工程 */
+val prepareRunnerLocalProps by tasks.registering(Copy::class) {
+    from(rootProject.file("local.properties"))
+    into(runnerProjectDir)
+    onlyIf { rootProject.file("local.properties").exists() }
+}
+
+/**
+ * 在独立工程中编译导出模板 APK（不会作为本 IDE 的可运行 App 出现）。
+ */
+val assembleRunnerTemplate by tasks.registering(Exec::class) {
+    dependsOn(prepareRunnerLocalProps)
+    workingDir = rootProject.projectDir
+    if (isWindows) {
+        commandLine("cmd", "/c", "gradlew.bat", "-p", "runner", "assembleDebug")
+    } else {
+        commandLine("./gradlew", "-p", "runner", "assembleDebug")
+    }
+    inputs.dir(runnerProjectDir.dir("src"))
+    inputs.dir(rootProject.file("app/src/main/java"))
+    outputs.file(runnerApk)
+}
+
+/** 将模板拷入应用工厂 assets，供「添加到桌面」导出使用 */
 val syncRunnerTemplate by tasks.registering(Copy::class) {
-    dependsOn(":runner:assembleDebug")
-    from(project(":runner").layout.buildDirectory.file("outputs/apk/debug/runner-debug.apk"))
-    into(layout.projectDirectory.dir("src/main/assets/templates"))
+    dependsOn(assembleRunnerTemplate)
+    from(runnerApk)
+    into(templateOutDir)
     rename { "runner.apk" }
 }
 
 tasks.named("preBuild").configure {
     dependsOn(syncRunnerTemplate)
+}
+
+tasks.register("installFactory") {
+    group = "install"
+    description = "安装应用工厂（com.example.myapplication），并清理迷你应用模板"
+    dependsOn("installDebug")
+    doFirst {
+        val adb = findAdb()
+        if (adb != null) {
+            val code = ProcessBuilder(adb, "uninstall", "com.example.minirunner")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+            logger.lifecycle("卸载模板包 com.example.minirunner 结束（exit=$code，不存在时也可忽略）")
+        } else {
+            logger.warn("未找到 adb，跳过卸载模板包；请确认运行的是「应用工厂」配置")
+        }
+    }
+    doLast {
+        logger.lifecycle("已安装应用工厂。请在 App 内用「添加到桌面」生成各小应用。")
+    }
+}
+
+fun findAdb(): String? {
+    val localProps = rootProject.file("local.properties")
+    if (!localProps.exists()) return null
+    val sdkLine = localProps.readLines().firstOrNull { it.startsWith("sdk.dir=") } ?: return null
+    val sdkDir = sdkLine.substringAfter("=")
+        .replace("\\:", ":")
+        .replace("\\\\", "\\")
+    val adbWin = File(sdkDir, "platform-tools/adb.exe")
+    val adbUnix = File(sdkDir, "platform-tools/adb")
+    return when {
+        adbWin.exists() -> adbWin.absolutePath
+        adbUnix.exists() -> adbUnix.absolutePath
+        else -> null
+    }
 }

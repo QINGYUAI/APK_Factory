@@ -1,18 +1,19 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 小应用编辑器：赛博分区布局与中文配置界面
+// Description: 小应用编辑器：赛博分区、图标选择、Lazy 列表提升滑动流畅度
 
 package com.example.myapplication.ui.editor
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -44,6 +45,7 @@ import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.domain.model.Trigger
 import com.example.myapplication.domain.model.TriggerTypes
+import com.example.myapplication.ui.icons.AppIconPicker
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberSectionTitle
@@ -144,68 +146,88 @@ fun MiniAppEditorScreen(
             }
             else -> {
                 val current = app!!
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        .padding(padding),
+                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    CyberSectionTitle("基本信息")
-                    CyberPanel {
-                        OutlinedTextField(
-                            value = current.name,
-                            onValueChange = { app = current.copy(name = it) },
-                            label = { Text("名称") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text("启用")
-                            Switch(
-                                checked = current.enabled,
-                                onCheckedChange = { app = current.copy(enabled = it) },
+                    item(key = "section-basic") {
+                        CyberSectionTitle("基本信息")
+                    }
+                    item(key = "panel-basic") {
+                        CyberPanel {
+                            OutlinedTextField(
+                                value = current.name,
+                                onValueChange = { app = current.copy(name = it) },
+                                label = { Text("名称") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
                             )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                                Text("打开本应用时自动运行")
-                                Text(
-                                    text = "hostOpened",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text("图标", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = "选择后将显示在列表与导出应用界面",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AppIconPicker(
+                                selectedKey = current.iconKey,
+                                onSelect = { app = current.copy(iconKey = it) },
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("启用")
+                                Switch(
+                                    checked = current.enabled,
+                                    onCheckedChange = { app = current.copy(enabled = it) },
                                 )
                             }
-                            Switch(
-                                checked = current.runOnHostOpen,
-                                onCheckedChange = { app = current.copy(runOnHostOpen = it) },
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                    Text("打开本应用时自动运行")
+                                    Text(
+                                        text = "hostOpened",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Switch(
+                                    checked = current.runOnHostOpen,
+                                    onCheckedChange = { app = current.copy(runOnHostOpen = it) },
+                                )
+                            }
                         }
                     }
 
-                    CyberSectionTitle("动作步骤")
+                    item(key = "section-steps") {
+                        CyberSectionTitle("动作步骤")
+                    }
                     if (current.steps.isEmpty()) {
-                        CyberPanel {
-                            Text(
-                                text = "尚未添加动作",
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                text = "点击下方按钮选择震动、音量、通知等模块",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        item(key = "steps-empty") {
+                            CyberPanel {
+                                Text(
+                                    text = "尚未添加动作",
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                Text(
+                                    text = "点击下方按钮选择震动、音量、通知等模块",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
-                    current.steps.forEachIndexed { index, step ->
+                    itemsIndexed(
+                        current.steps,
+                        key = { _, step -> step.id },
+                    ) { index, step ->
                         ActionForm(
                             step = step,
                             index = index,
@@ -238,51 +260,60 @@ fun MiniAppEditorScreen(
                             },
                         )
                     }
-                    Box {
-                        OutlinedButton(onClick = { addStepMenuOpen = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
-                            Text("添加动作", modifier = Modifier.padding(start = 6.dp))
-                        }
-                        DropdownMenu(
-                            expanded = addStepMenuOpen,
-                            onDismissRequest = { addStepMenuOpen = false },
-                        ) {
-                            actionTypes.forEach { type ->
-                                DropdownMenuItem(
-                                    text = {
-                                        LabeledTypeRow(
-                                            titleZh = actionTitleZh(type),
-                                            typeKey = type,
-                                            icon = actionIcon(type),
-                                        )
-                                    },
-                                    onClick = {
-                                        addStepMenuOpen = false
-                                        val step = ActionStep(
-                                            id = UUID.randomUUID().toString(),
-                                            type = type,
-                                            params = defaultParamsForType(type),
-                                            order = current.steps.size,
-                                            onFailure = FailurePolicy.ABORT,
-                                        )
-                                        app = current.copy(steps = current.steps + step)
-                                    },
-                                )
+                    item(key = "add-step") {
+                        Box {
+                            OutlinedButton(onClick = { addStepMenuOpen = true }) {
+                                Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
+                                Text("添加动作", modifier = Modifier.padding(start = 6.dp))
+                            }
+                            DropdownMenu(
+                                expanded = addStepMenuOpen,
+                                onDismissRequest = { addStepMenuOpen = false },
+                            ) {
+                                actionTypes.forEach { type ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            LabeledTypeRow(
+                                                titleZh = actionTitleZh(type),
+                                                typeKey = type,
+                                                icon = actionIcon(type),
+                                            )
+                                        },
+                                        onClick = {
+                                            addStepMenuOpen = false
+                                            val step = ActionStep(
+                                                id = UUID.randomUUID().toString(),
+                                                type = type,
+                                                params = defaultParamsForType(type),
+                                                order = current.steps.size,
+                                                onFailure = FailurePolicy.ABORT,
+                                            )
+                                            app = current.copy(steps = current.steps + step)
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
 
-                    CyberSectionTitle("触发器")
+                    item(key = "section-triggers") {
+                        CyberSectionTitle("触发器")
+                    }
                     if (current.triggers.isEmpty()) {
-                        CyberPanel {
-                            Text("可选触发方式", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                text = "支持定时、充电事件、打开指定应用时自动执行",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        item(key = "triggers-empty") {
+                            CyberPanel {
+                                Text("可选触发方式", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    text = "支持定时、充电事件、打开指定应用时自动执行",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
-                    current.triggers.forEachIndexed { index, trigger ->
+                    itemsIndexed(
+                        current.triggers,
+                        key = { _, trigger -> trigger.id },
+                    ) { index, trigger ->
                         TriggerForm(
                             trigger = trigger,
                             index = index,
@@ -298,39 +329,43 @@ fun MiniAppEditorScreen(
                             },
                         )
                     }
-                    Box {
-                        OutlinedButton(onClick = { addTriggerMenuOpen = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
-                            Text("添加触发器", modifier = Modifier.padding(start = 6.dp))
-                        }
-                        DropdownMenu(
-                            expanded = addTriggerMenuOpen,
-                            onDismissRequest = { addTriggerMenuOpen = false },
-                        ) {
-                            listOf(
-                                TriggerTypes.SCHEDULE,
-                                TriggerTypes.EVENT,
-                                TriggerTypes.APP_OPENED,
-                            ).forEach { type ->
-                                DropdownMenuItem(
-                                    text = {
-                                        LabeledTypeRow(
-                                            titleZh = triggerTitleZh(type),
-                                            typeKey = type,
-                                            icon = triggerIcon(type),
-                                        )
-                                    },
-                                    onClick = {
-                                        addTriggerMenuOpen = false
-                                        val trigger = Trigger(
-                                            id = UUID.randomUUID().toString(),
-                                            type = type,
-                                            params = defaultParamsForTrigger(type),
-                                            enabled = true,
-                                        )
-                                        app = current.copy(triggers = current.triggers + trigger)
-                                    },
-                                )
+                    item(key = "add-trigger") {
+                        Box {
+                            OutlinedButton(onClick = { addTriggerMenuOpen = true }) {
+                                Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
+                                Text("添加触发器", modifier = Modifier.padding(start = 6.dp))
+                            }
+                            DropdownMenu(
+                                expanded = addTriggerMenuOpen,
+                                onDismissRequest = { addTriggerMenuOpen = false },
+                            ) {
+                                listOf(
+                                    TriggerTypes.SCHEDULE,
+                                    TriggerTypes.EVENT,
+                                    TriggerTypes.APP_OPENED,
+                                ).forEach { type ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            LabeledTypeRow(
+                                                titleZh = triggerTitleZh(type),
+                                                typeKey = type,
+                                                icon = triggerIcon(type),
+                                            )
+                                        },
+                                        onClick = {
+                                            addTriggerMenuOpen = false
+                                            val trigger = Trigger(
+                                                id = UUID.randomUUID().toString(),
+                                                type = type,
+                                                params = defaultParamsForTrigger(type),
+                                                enabled = true,
+                                            )
+                                            app = current.copy(
+                                                triggers = current.triggers + trigger,
+                                            )
+                                        },
+                                    )
+                                }
                             }
                         }
                     }

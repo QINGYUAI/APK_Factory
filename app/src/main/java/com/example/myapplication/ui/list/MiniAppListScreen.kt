@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 小应用列表：赛博面板布局与中文文案；支持生成安装包
+// Description: 小应用列表：增删、运行；「添加到桌面」即生成可安装软件
 
 package com.example.myapplication.ui.list
 
@@ -15,13 +15,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -31,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +53,7 @@ import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.export.ApkExporter
 import com.example.myapplication.export.ApkInstaller
+import com.example.myapplication.ui.icons.AppIconCatalog
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberHeroHeader
 import com.example.myapplication.ui.theme.CyberPanel
@@ -68,8 +74,42 @@ fun MiniAppListScreen(
 ) {
     val context = LocalContext.current
     val apps by ServiceLocator.miniApps.observeAll().collectAsState(initial = emptyList())
+    val runningId by ServiceLocator.runner.runningId.collectAsState()
     val scope = rememberCoroutineScope()
     var exportingId by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf<MiniApp?>(null) }
+
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除小应用") },
+            text = {
+                Text("确定删除「${target.name}」？删除后无法恢复，相关定时触发也会取消。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            ServiceLocator.miniApps.delete(target.id)
+                            ServiceLocator.triggerManager.resync()
+                            pendingDelete = null
+                            Toast.makeText(context, "已删除「${target.name}」", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -129,7 +169,7 @@ fun MiniAppListScreen(
             ) {
                 CyberHeroHeader(
                     title = "自动化控制台",
-                    subtitle = "创建小应用，编排手机动作并一键执行",
+                    subtitle = "创建小应用，编排手机动作；点「添加到桌面」生成独立安装包",
                 )
                 CyberPanel {
                     Text(
@@ -137,7 +177,7 @@ fun MiniAppListScreen(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "点击右下角「+」开始配置震动、音量、通知等动作",
+                        text = "本应用是「应用工厂」。点右下角「+」配置动作后，再用「添加到桌面」安装到系统",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -154,13 +194,14 @@ fun MiniAppListScreen(
                 item {
                     CyberHeroHeader(
                         title = "自动化控制台",
-                        subtitle = "共 ${apps.size} 个小应用 · 可生成独立安装包",
+                        subtitle = "共 ${apps.size} 个小应用 · 在本工厂内配置后「添加到桌面」安装",
                     )
                 }
                 items(apps, key = { it.id }) { app ->
                     MiniAppListItem(
                         app = app,
                         exporting = exportingId == app.id,
+                        isRunning = runningId == app.id,
                         onToggleEnabled = { enabled ->
                             scope.launch {
                                 ServiceLocator.miniApps.save(
@@ -170,8 +211,10 @@ fun MiniAppListScreen(
                             }
                         },
                         onRun = { onRun(app.id) },
+                        onStop = { ServiceLocator.runner.stop() },
                         onOpenStandalone = { onOpenStandalone(app.id) },
-                        onExportApk = {
+                        onAddToDesktop = {
+                            // 「添加到桌面」= 生成可安装 APK 并调起系统安装
                             if (exportingId != null) return@MiniAppListItem
                             scope.launch {
                                 exportingId = app.id
@@ -179,7 +222,7 @@ fun MiniAppListScreen(
                                     if (!ApkInstaller.canRequestPackageInstalls(context)) {
                                         Toast.makeText(
                                             context,
-                                            "请先允许「安装未知应用」，返回后再点生成",
+                                            "请先允许「安装未知应用」，返回后再点「添加到桌面」",
                                             Toast.LENGTH_LONG,
                                         ).show()
                                         ApkInstaller.openUnknownSourcesSettings(context)
@@ -190,7 +233,7 @@ fun MiniAppListScreen(
                                     }
                                     Toast.makeText(
                                         context,
-                                        "已生成「${app.name}」安装包（桌面名：迷你应用，重复安装会覆盖）",
+                                        "已生成「${app.name}」安装包（包名独立，可与其它小应用并存）",
                                         Toast.LENGTH_LONG,
                                     ).show()
                                     ApkInstaller.install(context, apk)
@@ -205,6 +248,7 @@ fun MiniAppListScreen(
                                 }
                             }
                         },
+                        onDelete = { pendingDelete = app },
                         onOpenEditor = { onOpenEditor(app.id) },
                     )
                 }
@@ -218,10 +262,13 @@ fun MiniAppListScreen(
 private fun MiniAppListItem(
     app: MiniApp,
     exporting: Boolean,
+    isRunning: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
     onRun: () -> Unit,
+    onStop: () -> Unit,
     onOpenStandalone: () -> Unit,
-    onExportApk: () -> Unit,
+    onAddToDesktop: () -> Unit,
+    onDelete: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
     CyberPanel {
@@ -232,6 +279,12 @@ private fun MiniAppListItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Icon(
+                imageVector = AppIconCatalog.iconOf(app.iconKey),
+                contentDescription = null,
+                tint = CyberCyan,
+                modifier = Modifier.size(28.dp),
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.name,
@@ -242,6 +295,9 @@ private fun MiniAppListItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (isRunning) {
+                CyberStatusChip(text = "运行中", active = true)
             }
             CyberStatusChip(
                 text = if (app.enabled) "已启用" else "已停用",
@@ -257,25 +313,49 @@ private fun MiniAppListItem(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Button(onClick = onRun) {
-                Icon(
-                    Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-                Text("运行")
+            if (isRunning) {
+                Button(
+                    onClick = onStop,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Filled.Stop,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
+                    Text("停止")
+                }
+            } else {
+                Button(onClick = onRun) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
+                    Text("运行")
+                }
             }
             OutlinedButton(onClick = onOpenStandalone) {
                 Text("控制台")
             }
             OutlinedButton(
-                onClick = onExportApk,
+                onClick = onAddToDesktop,
                 enabled = !exporting,
             ) {
-                Text(if (exporting) "生成中…" else "生成安装包")
+                Text(if (exporting) "生成中…" else "添加到桌面")
             }
             OutlinedButton(onClick = onOpenEditor) {
                 Text("编辑")
+            }
+            OutlinedButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text("删除")
             }
         }
     }

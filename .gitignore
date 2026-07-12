@@ -17,5 +17,6 @@ local.properties
 /app/build/
 /runner/build/
 /runner/src/shared/
+/runner/local.properties
 /app/src/main/assets/templates/runner.apk
 

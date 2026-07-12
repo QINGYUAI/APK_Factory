@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 private val PanelShape = RoundedCornerShape(14.dp)
 
 /**
- * 带青色描边的科技面板。
+ * 带青色描边的科技面板（避免额外 clip，减轻列表滑动时的过度绘制）。
  */
 @Composable
 fun CyberPanel(
@@ -40,8 +40,7 @@ fun CyberPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(PanelShape)
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface, PanelShape)
             .border(1.dp, MaterialTheme.colorScheme.outline, PanelShape)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

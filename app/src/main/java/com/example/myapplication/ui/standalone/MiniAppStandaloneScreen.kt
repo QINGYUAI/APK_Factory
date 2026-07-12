@@ -16,8 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +69,8 @@ fun MiniAppStandaloneScreen(
     var app by remember { mutableStateOf<MiniApp?>(null) }
     var missing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val runningId by ServiceLocator.runner.runningId.collectAsState()
+    val isRunning = runningId == miniAppId
 
     LaunchedEffect(miniAppId) {
         val loaded = ServiceLocator.miniApps.get(miniAppId)
@@ -178,13 +183,39 @@ fun MiniAppStandaloneScreen(
                     item {
                         CyberPanel {
                             Text("快捷操作", style = MaterialTheme.typography.titleSmall)
-                            Button(
-                                onClick = onRun,
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = current.enabled,
-                            ) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                Text("立即运行", modifier = Modifier.padding(start = 6.dp))
+                            if (isRunning) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    CyberStatusChip(text = "运行中", active = true)
+                                    Text(
+                                        text = "动作链执行中",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                Button(
+                                    onClick = { ServiceLocator.runner.stop() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                    ),
+                                ) {
+                                    Icon(Icons.Filled.Stop, contentDescription = null)
+                                    Text("停止", modifier = Modifier.padding(start = 6.dp))
+                                }
+                            } else {
+                                Button(
+                                    onClick = onRun,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = current.enabled,
+                                ) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                    Text("立即运行", modifier = Modifier.padding(start = 6.dp))
+                                }
                             }
                             OutlinedButton(
                                 onClick = onConfigure,

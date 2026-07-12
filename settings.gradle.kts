@@ -22,6 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "AppFactory"
 include(":app")
-include(":runner")
+// 注意：runner 是独立工程（runner/settings.gradle.kts），不在此 include。
+// 由 :app 的 assembleRunnerTemplate 任务调用，仅生成导出模板，避免 IDE 误装「迷你应用」。

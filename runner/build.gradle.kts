@@ -4,9 +4,10 @@ plugins {
 }
 
 val sharedSrcDir = layout.projectDirectory.dir("src/shared/java")
+val factorySources = rootProject.projectDir.resolve("../app/src/main/java")
 
 val syncSharedSources by tasks.registering(Sync::class) {
-    from(project(":app").projectDir.resolve("src/main/java")) {
+    from(factorySources) {
         include(
             "**/domain/**",
             "**/engine/ActionExecutor.kt",
@@ -31,6 +32,7 @@ android {
     }
 
     defaultConfig {
+        // 模板包名；导出时由应用工厂改写为每个小应用独立包名
         applicationId = "com.example.minirunner"
         minSdk = 34
         targetSdk = 36
@@ -39,12 +41,8 @@ android {
     }
 
     buildTypes {
-        release {
-            isMinifyEnabled = false
-        }
-        debug {
-            isMinifyEnabled = false
-        }
+        release { isMinifyEnabled = false }
+        debug { isMinifyEnabled = false }
     }
 
     compileOptions {
@@ -56,7 +54,6 @@ android {
         compose = true
     }
 
-    // AGP 9：通过 kotlin.directories 引入同步后的共享内核源码
     sourceSets {
         named("main") {
             kotlin.directories.add("src/shared/java")
@@ -66,6 +63,13 @@ android {
 
 tasks.named("preBuild").configure {
     dependsOn(syncSharedSources)
+}
+
+// 即使有人手动 -p runner install，也禁止装到手机
+tasks.configureEach {
+    if (name.startsWith("install")) {
+        enabled = false
+    }
 }
 
 dependencies {
