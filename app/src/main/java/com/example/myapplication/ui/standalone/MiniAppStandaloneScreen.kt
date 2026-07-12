@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -45,6 +47,7 @@ import com.example.myapplication.ui.editor.actionIcon
 import com.example.myapplication.ui.editor.actionTitleZh
 import com.example.myapplication.ui.editor.triggerIcon
 import com.example.myapplication.ui.editor.triggerTitleZh
+import com.example.myapplication.ui.icons.AppIconCatalog
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberHeroHeader
 import com.example.myapplication.ui.theme.CyberPanel
@@ -139,10 +142,23 @@ fun MiniAppStandaloneScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     item {
-                        CyberHeroHeader(
-                            title = current.name,
-                            subtitle = "独立入口 · 可运行也可配置动作与触发器",
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                imageVector = AppIconCatalog.iconOf(current.iconKey),
+                                contentDescription = null,
+                                tint = CyberCyan,
+                                modifier = Modifier.size(36.dp),
+                            )
+                            CyberHeroHeader(
+                                title = current.name,
+                                subtitle = "独立入口 · 可运行也可配置动作与触发器",
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                     item {
                         CyberPanel {
@@ -239,73 +255,79 @@ fun MiniAppStandaloneScreen(
                         }
                     }
                     item { CyberSectionTitle("动作预览") }
-                    item {
-                        if (current.steps.isEmpty()) {
+                    if (current.steps.isEmpty()) {
+                        item {
                             CyberPanel {
                                 Text("暂无动作，请先进入配置添加")
                             }
-                        } else {
-                            current.steps.sortedBy { it.order }.forEachIndexed { index, step ->
-                                CyberPanel(modifier = Modifier.padding(bottom = 8.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Icon(
-                                            actionIcon(step.type),
-                                            contentDescription = null,
-                                            tint = CyberCyan,
+                        }
+                    } else {
+                        itemsIndexed(
+                            current.steps.sortedBy { it.order },
+                            key = { _, step -> step.id },
+                        ) { index, step ->
+                            CyberPanel {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Icon(
+                                        actionIcon(step.type),
+                                        contentDescription = null,
+                                        tint = CyberCyan,
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "${index + 1}. ${actionTitleZh(step.type)}",
+                                            style = MaterialTheme.typography.titleSmall,
                                         )
-                                        Column {
-                                            Text(
-                                                text = "${index + 1}. ${actionTitleZh(step.type)}",
-                                                style = MaterialTheme.typography.titleSmall,
-                                            )
-                                            Text(
-                                                text = step.type,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                                        Text(
+                                            text = step.type,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                     item { CyberSectionTitle("触发器预览") }
-                    item {
-                        if (current.triggers.isEmpty()) {
+                    if (current.triggers.isEmpty()) {
+                        item {
                             CyberPanel {
                                 Text("暂无触发器（仍可手动运行）")
                             }
-                        } else {
-                            current.triggers.forEachIndexed { index, trigger ->
-                                CyberPanel(modifier = Modifier.padding(bottom = 8.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Icon(
-                                            triggerIcon(trigger.type),
-                                            contentDescription = null,
-                                            tint = CyberCyan,
+                        }
+                    } else {
+                        itemsIndexed(
+                            current.triggers,
+                            key = { _, trigger -> trigger.id },
+                        ) { index, trigger ->
+                            CyberPanel {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Icon(
+                                        triggerIcon(trigger.type),
+                                        contentDescription = null,
+                                        tint = CyberCyan,
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${index + 1}. ${triggerTitleZh(trigger.type)}",
+                                            style = MaterialTheme.typography.titleSmall,
                                         )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "${index + 1}. ${triggerTitleZh(trigger.type)}",
-                                                style = MaterialTheme.typography.titleSmall,
-                                            )
-                                            Text(
-                                                text = trigger.type,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        CyberStatusChip(
-                                            text = if (trigger.enabled) "启用" else "关闭",
-                                            active = trigger.enabled,
+                                        Text(
+                                            text = trigger.type,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
+                                    CyberStatusChip(
+                                        text = if (trigger.enabled) "启用" else "关闭",
+                                        active = trigger.enabled,
+                                    )
                                 }
                             }
                         }

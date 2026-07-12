@@ -1,22 +1,42 @@
+# Built artifacts
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.gradle/
+**/build/
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.ap_
+*.dex
+*.class
+
+# Local SDK / secrets
 local.properties
-.worktrees/
-/app/build/
-/runner/build/
-/runner/src/shared/
-/runner/local.properties
+**/local.properties
+*.keystore
+*.jks
+# 导出签名证书由工程托管，允许提交
+!app/src/main/assets/templates/export.p12
+
+# Runner 模板体积大，由 assemble/sync 任务生成
 /app/src/main/assets/templates/runner.apk
 
+# Runner 从 :app 同步的共享源码（勿直接改）
+/runner/src/shared/
+
+# Git worktrees / OS
+.worktrees/
+.DS_Store
+Thumbs.db
+*.log
+.kotlin/
+
+# IDE：忽略本地 IDE 状态，仅保留可共享的运行配置与检查配置
+.idea/*
+!.idea/.gitignore
+!.idea/runConfigurations/
+!.idea/runConfigurations/**
+!.idea/codeStyles/
+!.idea/codeStyles/**
+!.idea/inspectionProfiles/
+!.idea/inspectionProfiles/**

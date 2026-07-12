@@ -25,6 +25,9 @@ internal object ExportPatcher {
         newPackage: String,
         label: String,
         jsonBytes: ByteArray,
+        /** 额外 assets，key 为 APK 内路径如 assets/media/xxx.mp3 */
+        extraAssets: Map<String, ByteArray> = emptyMap(),
+        iconKey: String = "default",
     ) {
         val module = ApkModule.loadApkFile(templateFile)
         try {
@@ -40,14 +43,77 @@ internal object ExportPatcher {
             manifest.mainActivityClassName = COMPONENT_ACTIVITY
             manifest.setApplicationLabel(label)
             rewriteAppNameResources(module, label)
+            applyLauncherIcon(module, manifest, iconKey)
 
             module.removeInputSource(EMBEDDED_JSON_PATH)
             module.add(ByteInputSource(jsonBytes, EMBEDDED_JSON_PATH))
+
+            for ((path, bytes) in extraAssets) {
+                module.removeInputSource(path)
+                module.add(ByteInputSource(bytes, path))
+            }
 
             if (outputFile.exists()) outputFile.delete()
             module.writeApk(outputFile)
         } finally {
             module.close()
+        }
+    }
+
+    /**
+     * 将 application / roundIcon 指向预设 mipmap（如 ic_app_music）。
+     */
+    private fun applyLauncherIcon(
+        module: ApkModule,
+        manifest: AndroidManifestBlock,
+        iconKey: String,
+    ) {
+        val name = LauncherIconPack.mipmapName(iconKey)
+        val table = module.tableBlock ?: return
+        var iconId = 0
+        var roundId = 0
+        for (pkg in table.listPackages()) {
+            val iconEntries = pkg.getEntries("mipmap", name)
+            if (iconEntries.hasNext()) {
+                iconId = iconEntries.next().resourceId
+            }
+            val roundEntries = pkg.getEntries("mipmap", "${name}_round")
+            if (roundEntries.hasNext()) {
+                roundId = roundEntries.next().resourceId
+            }
+        }
+        if (iconId != 0) {
+            manifest.setIconResourceId(iconId)
+        }
+        if (roundId != 0) {
+            setRoundIconResourceId(manifest, roundId)
+        }
+    }
+
+    /** android.R.attr.roundIcon */
+    private const val ATTR_ROUND_ICON = 0x0101052c
+
+    /** ARSCLib 部分版本无 setRoundIconResourceId，退化为写属性。 */
+    private fun setRoundIconResourceId(manifest: AndroidManifestBlock, resourceId: Int) {
+        runCatching {
+            val method = manifest.javaClass.getMethod("setRoundIconResourceId", Int::class.javaPrimitiveType)
+            method.invoke(manifest, resourceId)
+            return
+        }
+        val app = runCatching { manifest.javaClass.getMethod("getApplicationElement").invoke(manifest) }.getOrNull()
+            ?: runCatching {
+                manifest.javaClass.getMethod("getOrCreateApplicationElement").invoke(manifest)
+            }.getOrNull()
+            ?: return
+        runCatching {
+            val getOrCreate = app.javaClass.methods.firstOrNull {
+                it.name == "getOrCreateAndroidAttribute" && it.parameterTypes.size == 2
+            } ?: return
+            val attr = getOrCreate.invoke(app, "roundIcon", ATTR_ROUND_ICON) ?: return
+            val setType = attr.javaClass.methods.firstOrNull {
+                it.name == "setTypeAndData" && it.parameterTypes.size == 2
+            }
+            setType?.invoke(attr, ValueType.REFERENCE, resourceId)
         }
     }
 

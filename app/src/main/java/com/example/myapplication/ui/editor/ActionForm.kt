@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -268,19 +269,31 @@ private fun MediaFilePickerField(
 ) {
     val context = LocalContext.current
     val displayName = params["displayName"].orEmpty().ifBlank {
-        params["uri"]?.let { MediaUriHelper.displayName(context, it) }.orEmpty()
+        params["path"]?.takeIf { it.isNotBlank() && !MediaUriHelper.isAssetPath(it) }
+            ?.let { java.io.File(it).name }
+            ?: params["uri"]?.let { MediaUriHelper.displayName(context, it) }.orEmpty()
     }
+    val hasMedia = params["path"].orEmpty().isNotBlank() || params["uri"].orEmpty().isNotBlank()
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         MediaUriHelper.takePersistableRead(context, uri)
         val name = MediaUriHelper.displayName(context, uri.toString()).orEmpty()
+        // 复制到私有目录，工厂内可直接播；导出时再嵌入 APK（content URI 权限不跨应用）
+        val copied = runCatching { MediaUriHelper.copyToPrivateMedia(context, uri) }.getOrElse { err ->
+            Toast.makeText(
+                context,
+                err.message ?: "复制媒体失败，请换一个文件重试",
+                Toast.LENGTH_LONG,
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
         onParamsChange(
             params + mapOf(
-                "uri" to uri.toString(),
-                "displayName" to name,
-                "path" to "",
+                "uri" to "",
+                "displayName" to name.ifBlank { copied.name },
+                "path" to copied.absolutePath,
             ),
         )
     }
@@ -295,12 +308,17 @@ private fun MediaFilePickerField(
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
         )
-        if (params["uri"].orEmpty().isNotBlank()) {
+        if (params["path"].orEmpty().isNotBlank()) {
             Text(
-                text = params.getValue("uri"),
+                text = "已保存到应用内，导出时将一并打包",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else if (params["uri"].orEmpty().isNotBlank()) {
+            Text(
+                text = "旧版仅存链接，请重新选择文件后再导出",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -308,7 +326,7 @@ private fun MediaFilePickerField(
                 Icon(Icons.Filled.FolderOpen, contentDescription = null)
                 Text(pickButtonLabel, modifier = Modifier.padding(start = 6.dp))
             }
-            if (params["uri"].orEmpty().isNotBlank()) {
+            if (hasMedia) {
                 OutlinedButton(
                     onClick = {
                         onParamsChange(params + mapOf("uri" to "", "displayName" to "", "path" to ""))
@@ -332,8 +350,8 @@ fun defaultParamsForType(type: String): Map<String, String> = when (type) {
     ActionTypes.OPEN_APP -> mapOf("packageName" to "")
     ActionTypes.FLASHLIGHT, ActionTypes.WIFI, ActionTypes.BLUETOOTH -> mapOf("enabled" to "true")
     ActionTypes.SET_BRIGHTNESS -> mapOf("percent" to "50")
-    ActionTypes.PLAY_MUSIC -> mapOf("uri" to "", "displayName" to "")
-    ActionTypes.PLAY_VIDEO -> mapOf("uri" to "", "displayName" to "")
+    ActionTypes.PLAY_MUSIC -> mapOf("uri" to "", "displayName" to "", "path" to "")
+    ActionTypes.PLAY_VIDEO -> mapOf("uri" to "", "displayName" to "", "path" to "")
     ActionTypes.SET_RINGER_MODE -> mapOf("mode" to "vibrate")
     else -> emptyMap()
 }

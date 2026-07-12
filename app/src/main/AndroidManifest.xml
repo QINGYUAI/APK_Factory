@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 播放本地音频 -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <!-- 手电筒优先 CameraManager.setTorchMode，不强制 CAMERA；部分机型可能仍需 -->
     <!-- 系统亮度（特殊权限，需 Settings.System.canWrite） -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"

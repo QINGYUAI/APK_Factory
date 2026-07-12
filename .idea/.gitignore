@@ -1,0 +1,15 @@
+# Local IDE state (repo root .gitignore also covers .idea/*)
+/shelf/
+/workspace.xml
+/caches/
+/libraries/
+/modules.xml
+/navEditor.xml
+/assetWizardSettings.xml
+/deviceManager.xml
+/deploymentTargetSelector.xml
+/appInsightsSettings.xml
+/*.xml
+!/runConfigurations/
+!/codeStyles/
+!/inspectionProfiles/
