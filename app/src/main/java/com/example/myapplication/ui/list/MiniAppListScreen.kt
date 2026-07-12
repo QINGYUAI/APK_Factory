@@ -48,11 +48,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.di.ServiceLocator
-import com.example.myapplication.domain.model.ActionStep
-import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.export.ApkExporter
 import com.example.myapplication.export.ApkInstaller
+import com.example.myapplication.export.ConfigSyncPusher
+import com.example.myapplication.export.ExportPreflight
+import com.example.myapplication.export.ExportVersionHelper
 import com.example.myapplication.ui.icons.AppIconCatalog
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberHeroHeader
@@ -62,14 +63,15 @@ import com.example.myapplication.ui.theme.CyberTopBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniAppListScreen(
     onOpenEditor: (String) -> Unit,
+    onCreate: () -> Unit = {},
     onRun: (String) -> Unit,
     onOpenStandalone: (String) -> Unit = {},
+    onOpenHistory: (String) -> Unit = {},
     onOpenPermissions: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -77,6 +79,7 @@ fun MiniAppListScreen(
     val runningId by ServiceLocator.runner.runningId.collectAsState()
     val scope = rememberCoroutineScope()
     var exportingId by remember { mutableStateOf<String?>(null) }
+    var syncingId by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<MiniApp?>(null) }
 
     pendingDelete?.let { target ->
@@ -129,29 +132,7 @@ fun MiniAppListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    scope.launch {
-                        val id = UUID.randomUUID().toString()
-                        val now = System.currentTimeMillis()
-                        val app = MiniApp(
-                            id = id,
-                            name = "未命名小应用",
-                            enabled = true,
-                            createdAt = now,
-                            updatedAt = now,
-                            steps = listOf(
-                                ActionStep(
-                                    id = UUID.randomUUID().toString(),
-                                    type = ActionTypes.DELAY,
-                                    params = mapOf("millis" to "100"),
-                                    order = 0,
-                                ),
-                            ),
-                        )
-                        ServiceLocator.miniApps.save(app)
-                        onOpenEditor(id)
-                    }
-                },
+                onClick = onCreate,
                 containerColor = CyberCyan,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
@@ -177,7 +158,7 @@ fun MiniAppListScreen(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "本应用是「应用工厂」。点右下角「+」配置动作后，再用「添加到桌面」安装到系统",
+                        text = "本应用是「应用工厂」。点右下角「+」按向导创建（选模板与触发器），再用「添加到桌面」安装",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -194,13 +175,18 @@ fun MiniAppListScreen(
                 item {
                     CyberHeroHeader(
                         title = "自动化控制台",
-                        subtitle = "共 ${apps.size} 个小应用 · 在本工厂内配置后「添加到桌面」安装",
+                    subtitle = "共 ${apps.size} 个小应用 · 已安装可用「同步配置」热更新，或「更新应用」重装",
                     )
                 }
-                items(apps, key = { it.id }) { app ->
+                    items(apps, key = { it.id }) { app ->
+                    val installed = remember(app.id, app.updatedAt, exportingId) {
+                        ExportVersionHelper.isInstalled(context, app)
+                    }
                     MiniAppListItem(
                         app = app,
                         exporting = exportingId == app.id,
+                        syncing = syncingId == app.id,
+                        installed = installed,
                         isRunning = runningId == app.id,
                         onToggleEnabled = { enabled ->
                             scope.launch {
@@ -213,6 +199,52 @@ fun MiniAppListScreen(
                         onRun = { onRun(app.id) },
                         onStop = { ServiceLocator.runner.stop() },
                         onOpenStandalone = { onOpenStandalone(app.id) },
+                        onSyncConfig = {
+                            if (syncingId != null || exportingId != null) return@MiniAppListItem
+                            scope.launch {
+                                syncingId = app.id
+                                try {
+                                    val preflight = withContext(Dispatchers.IO) {
+                                        ExportPreflight.check(context, app)
+                                    }
+                                    if (!preflight.canExport) {
+                                        Toast.makeText(
+                                            context,
+                                            preflight.errors.joinToString("\n"),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                        return@launch
+                                    }
+                                    val result = withContext(Dispatchers.IO) {
+                                        ConfigSyncPusher.sync(context, app)
+                                    }
+                                    when (result) {
+                                        ConfigSyncPusher.Result.Success -> {
+                                            Toast.makeText(
+                                                context,
+                                                "正在同步「${app.name}」配置（无需重装）",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                        is ConfigSyncPusher.Result.Failed -> {
+                                            Toast.makeText(
+                                                context,
+                                                result.message,
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        "同步失败：${e.message ?: "未知错误"}",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                } finally {
+                                    syncingId = null
+                                }
+                            }
+                        },
                         onAddToDesktop = {
                             // 「添加到桌面」= 生成可安装 APK 并调起系统安装
                             if (exportingId != null) return@MiniAppListItem
@@ -228,12 +260,35 @@ fun MiniAppListScreen(
                                         ApkInstaller.openUnknownSourcesSettings(context)
                                         return@launch
                                     }
+                                    val preflight = withContext(Dispatchers.IO) {
+                                        ExportPreflight.check(context, app)
+                                    }
+                                    if (!preflight.canExport) {
+                                        Toast.makeText(
+                                            context,
+                                            preflight.errors.joinToString("\n"),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                        return@launch
+                                    }
+                                    if (preflight.warnings.isNotEmpty()) {
+                                        Toast.makeText(
+                                            context,
+                                            preflight.warnings.joinToString("\n"),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
                                     val apk = withContext(Dispatchers.IO) {
                                         ApkExporter.export(context, app)
                                     }
+                                    val updating = ExportVersionHelper.isInstalled(context, app)
                                     Toast.makeText(
                                         context,
-                                        "已生成「${app.name}」安装包（包名独立，可与其它小应用并存）",
+                                        if (updating) {
+                                            "正在更新「${app.name}」（覆盖原安装包，不会新增图标）"
+                                        } else {
+                                            "已生成「${app.name}」安装包，请完成安装"
+                                        },
                                         Toast.LENGTH_LONG,
                                     ).show()
                                     ApkInstaller.install(context, apk)
@@ -250,6 +305,7 @@ fun MiniAppListScreen(
                         },
                         onDelete = { pendingDelete = app },
                         onOpenEditor = { onOpenEditor(app.id) },
+                        onOpenHistory = { onOpenHistory(app.id) },
                     )
                 }
             }
@@ -262,14 +318,18 @@ fun MiniAppListScreen(
 private fun MiniAppListItem(
     app: MiniApp,
     exporting: Boolean,
+    syncing: Boolean,
+    installed: Boolean,
     isRunning: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
     onRun: () -> Unit,
     onStop: () -> Unit,
     onOpenStandalone: () -> Unit,
+    onSyncConfig: () -> Unit,
     onAddToDesktop: () -> Unit,
     onDelete: () -> Unit,
     onOpenEditor: () -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     CyberPanel {
         Row(
@@ -340,14 +400,32 @@ private fun MiniAppListItem(
             OutlinedButton(onClick = onOpenStandalone) {
                 Text("控制台")
             }
+            if (installed) {
+                OutlinedButton(
+                    onClick = onSyncConfig,
+                    enabled = !exporting && !syncing,
+                ) {
+                    Text(if (syncing) "同步中…" else "同步配置")
+                }
+            }
             OutlinedButton(
                 onClick = onAddToDesktop,
-                enabled = !exporting,
+                enabled = !exporting && !syncing,
             ) {
-                Text(if (exporting) "生成中…" else "添加到桌面")
+                Text(
+                    when {
+                        exporting && installed -> "更新中…"
+                        exporting -> "生成中…"
+                        installed -> "更新应用"
+                        else -> "添加到桌面"
+                    },
+                )
             }
             OutlinedButton(onClick = onOpenEditor) {
                 Text("编辑")
+            }
+            OutlinedButton(onClick = onOpenHistory) {
+                Text("历史")
             }
             OutlinedButton(
                 onClick = onDelete,

@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: Wi‑Fi 开关动作处理器；现代 Android 可能因 API 限制返回 UNSUPPORTED
+// Description: Wi‑Fi 动作：优先打开系统面板；旧系统尝试直接开关
 
 package com.example.myapplication.platform.handlers
 
@@ -10,6 +10,7 @@ import android.os.Build
 import com.example.myapplication.domain.ActionHandler
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.ActionTypes
+import com.example.myapplication.platform.PermissionHelper
 import com.example.myapplication.platform.PlatformActionContext
 
 class WifiHandler(
@@ -28,13 +29,19 @@ class WifiHandler(
 
     @Suppress("DEPRECATION")
     override suspend fun execute(params: Map<String, String>): ActionResult {
-        val enabled = params.getValue("enabled").toBoolean()
+        // Android 10+ 不允许应用静默开关 Wi‑Fi：打开系统面板供用户操作
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return ActionResult.Failed(
-                "UNSUPPORTED",
-                "Android 10 及以上不允许应用直接开关 Wi‑Fi，请到系统设置中手动操作",
-            )
+            return try {
+                PermissionHelper.openWifiSettings(ctx.appContext)
+                ActionResult.Success
+            } catch (e: Exception) {
+                ActionResult.Failed(
+                    "UNSUPPORTED",
+                    "无法打开 Wi‑Fi 设置：${e.message ?: "未知错误"}",
+                )
+            }
         }
+        val enabled = params.getValue("enabled").toBoolean()
         val wifiManager =
             ctx.appContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
                 ?: return ActionResult.Failed("NO_WIFI", "无法获取 Wi‑Fi 服务")
@@ -43,7 +50,8 @@ class WifiHandler(
             if (ok) {
                 ActionResult.Success
             } else {
-                ActionResult.Failed("UNSUPPORTED", "系统拒绝切换 Wi‑Fi，请到系统设置中操作")
+                PermissionHelper.openWifiSettings(ctx.appContext)
+                ActionResult.Failed("UNSUPPORTED", "系统拒绝切换 Wi‑Fi，已尝试打开设置页")
             }
         } catch (e: SecurityException) {
             ActionResult.Failed("NO_PERMISSION", "没有 Wi‑Fi 相关权限")

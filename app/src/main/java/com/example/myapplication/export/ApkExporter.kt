@@ -37,6 +37,8 @@ object ApkExporter {
 
         val newPackage = ExportIdentity.packageNameFor(miniApp)
         val label = ExportIdentity.labelFor(miniApp)
+        val versionCode = ExportVersionHelper.nextVersionCode(context, miniApp)
+        val versionName = ExportVersionHelper.versionNameFor(versionCode, miniApp)
         // 将音乐/视频复制进 APK assets，避免 content URI 权限无法跨包转移
         val prepared = MediaExportHelper.prepare(context, miniApp)
         val jsonBytes = JsonMappers.miniAppToJson(prepared.miniApp).toByteArray(Charsets.UTF_8)
@@ -49,6 +51,8 @@ object ApkExporter {
             jsonBytes = jsonBytes,
             extraAssets = prepared.assetFiles,
             iconKey = miniApp.iconKey,
+            versionCode = versionCode,
+            versionName = versionName,
         )
         templateFile.delete()
 

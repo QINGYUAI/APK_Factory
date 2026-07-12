@@ -2,4 +2,5 @@
 <paths>
     <cache-path name="media_cache" path="media-play/" />
     <files-path name="media" path="media/" />
+    <files-path name="synced_config" path="synced_config/" />
 </paths>

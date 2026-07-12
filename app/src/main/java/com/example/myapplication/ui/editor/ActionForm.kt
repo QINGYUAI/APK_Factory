@@ -180,7 +180,24 @@ private fun ActionParamsFields(
                 singleLine = true,
             )
         }
-        ActionTypes.FLASHLIGHT, ActionTypes.WIFI, ActionTypes.BLUETOOTH -> {
+        ActionTypes.WIFI -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("期望开启 · enabled")
+                Switch(
+                    checked = params["enabled"] == "true",
+                    onCheckedChange = { update("enabled", it.toString()) },
+                )
+            }
+            Text(
+                text = "Android 10+ 无法静默开关，运行时会打开系统 Wi‑Fi 面板",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        ActionTypes.FLASHLIGHT, ActionTypes.BLUETOOTH -> {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,9 +247,9 @@ private fun ActionParamsFields(
         }
         ActionTypes.SCREENSHOT -> {
             Text(
-                text = "截图暂无需参数（需系统授权）",
+                text = "截图需 MediaProjection 授权，一期暂未完成；加入后运行会明确失败，不会闪退",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.error,
             )
         }
         else -> {

@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 触发器同步：schedule（WorkManager）与 appOpened（UsageStats 轮询）对齐
+// Description: 触发器同步：定时、每日定点、系统事件动态注册、打开 App 轮询
 
 package com.example.myapplication.engine
 
@@ -13,13 +13,13 @@ import androidx.work.workDataOf
 import com.example.myapplication.data.MiniAppRepository
 import com.example.myapplication.domain.model.TriggerTypes
 import com.example.myapplication.platform.AppOpenMonitor
+import com.example.myapplication.platform.DailyAtScheduler
+import com.example.myapplication.platform.DynamicScreenEventMonitor
 import com.example.myapplication.worker.ScheduleMiniAppWorker
 import java.util.concurrent.TimeUnit
 
 /**
- * 将启用中的定时触发器与 WorkManager 对齐；事件类由 Manifest 静态 Receiver 处理；
- * appOpened 由 [AppOpenMonitor] 在有权限时轮询 UsageStats。
- *
+ * 将启用中的触发器与系统能力对齐。
  * PeriodicWork 最短间隔 15 分钟：若用户配置更短，按 15 分钟入队。
  */
 class TriggerManager(
@@ -31,38 +31,43 @@ class TriggerManager(
     private val prefs by lazy {
         app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
+    private val dynamicEvents = DynamicScreenEventMonitor(app)
 
     suspend fun resync() {
         val apps = miniApps.getAll()
         val desired = linkedSetOf<String>()
+        val dynamicActions = linkedSetOf<String>()
 
         for (miniApp in apps) {
             if (!miniApp.enabled) continue
             for (trigger in miniApp.triggers) {
                 if (!trigger.enabled) continue
-                if (trigger.type != TriggerTypes.SCHEDULE) continue
-
-                val workName = scheduleWorkName(miniApp.id, trigger.id)
-                desired.add(workName)
-
-                val requestedMinutes = trigger.params["intervalMinutes"]?.toLongOrNull() ?: 15L
-                // PeriodicWorkRequest 系统下限 15 分钟
-                val intervalMinutes = maxOf(requestedMinutes, MIN_PERIODIC_MINUTES)
-
-                val request = PeriodicWorkRequestBuilder<ScheduleMiniAppWorker>(
-                    intervalMinutes,
-                    TimeUnit.MINUTES,
-                )
-                    .setInputData(
-                        workDataOf(ScheduleMiniAppWorker.KEY_MINI_APP_ID to miniApp.id),
-                    )
-                    .build()
-
-                workManager.enqueueUniquePeriodicWork(
-                    workName,
-                    ExistingPeriodicWorkPolicy.UPDATE,
-                    request,
-                )
+                when (trigger.type) {
+                    TriggerTypes.SCHEDULE -> {
+                        val workName = scheduleWorkName(miniApp.id, trigger.id)
+                        desired.add(workName)
+                        val requestedMinutes = trigger.params["intervalMinutes"]?.toLongOrNull() ?: 15L
+                        val intervalMinutes = maxOf(requestedMinutes, MIN_PERIODIC_MINUTES)
+                        val request = PeriodicWorkRequestBuilder<ScheduleMiniAppWorker>(
+                            intervalMinutes,
+                            TimeUnit.MINUTES,
+                        )
+                            .setInputData(
+                                workDataOf(ScheduleMiniAppWorker.KEY_MINI_APP_ID to miniApp.id),
+                            )
+                            .build()
+                        workManager.enqueueUniquePeriodicWork(
+                            workName,
+                            ExistingPeriodicWorkPolicy.UPDATE,
+                            request,
+                        )
+                    }
+                    TriggerTypes.EVENT -> {
+                        trigger.params["action"]?.takeIf { it.isNotBlank() }?.let {
+                            dynamicActions.add(it)
+                        }
+                    }
+                }
             }
         }
 
@@ -72,7 +77,8 @@ class TriggerManager(
         }
         prefs.edit().putStringSet(KEY_SCHEDULE_NAMES, HashSet(desired)).apply()
 
-        // appOpened：有启用触发且已授予使用情况访问时启动轮询，否则停止
+        DailyAtScheduler.resync(app, apps)
+        dynamicEvents.sync(dynamicActions)
         appOpenMonitor.sync(apps)
     }
 

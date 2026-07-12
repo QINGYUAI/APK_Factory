@@ -5,6 +5,7 @@
 package com.example.myapplication.platform
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
@@ -18,7 +19,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 /**
- * 封装运行时权限检测与系统设置页跳转（通知、使用情况、WRITE_SETTINGS、勿扰策略）。
+ * 封装运行时权限检测与系统设置页跳转（通知、使用情况、WRITE_SETTINGS、勿扰策略、精确闹钟）。
  */
 object PermissionHelper {
 
@@ -91,5 +92,39 @@ object PermissionHelper {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    /** Android 12+ 精确闹钟（日程触发更准时）。 */
+    fun canScheduleExactAlarms(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val am = context.getSystemService(AlarmManager::class.java) ?: return false
+        return am.canScheduleExactAlarms()
+    }
+
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            openAppDetailsSettings(context)
+            return
+        }
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(intent) }.onFailure {
+            openAppDetailsSettings(context)
+        }
+    }
+
+    fun openWifiSettings(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Intent(Settings.Panel.ACTION_WIFI)
+        } else {
+            Intent(Settings.ACTION_WIFI_SETTINGS)
+        }.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        runCatching { context.startActivity(intent) }.onFailure {
+            context.startActivity(
+                Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
     }
 }

@@ -7,6 +7,8 @@
 
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- 播放本地音频 -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -27,6 +29,10 @@
     <!-- 使用情况访问（特殊权限，需用户在设置中授权） -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        tools:ignore="ExactAlarm" />
     <!-- 导出安装包后调起系统安装器 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -35,6 +41,10 @@
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="com.example.minirunner.action.APPLY_CONFIG" />
+            <data android:mimeType="application/zip" />
         </intent>
     </queries>
 
@@ -83,11 +93,58 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <service
+            android:name="com.example.myapplication.platform.media.MediaPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <activity
+            android:name="com.example.myapplication.platform.media.VideoPlaybackActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize" />
+
         <receiver
-            android:name=".platform.PowerConnectedReceiver"
+            android:name=".platform.SystemEventReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.intent.action.HEADSET_PLUG" />
+                <action android:name="android.intent.action.AIRPLANE_MODE" />
+                <action android:name="android.intent.action.BATTERY_LOW" />
+                <action android:name="android.intent.action.BATTERY_OKAY" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 兼容旧类名 -->
+        <receiver
+            android:name=".platform.PowerConnectedReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".platform.CalendarAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.myapplication.action.CALENDAR_FIRE" />
+                <action android:name="com.example.myapplication.action.DAILY_AT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 兼容旧每日定点广播类名 -->
+        <receiver
+            android:name=".platform.DailyAtReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.myapplication.action.DAILY_AT" />
             </intent-filter>
         </receiver>
     </application>

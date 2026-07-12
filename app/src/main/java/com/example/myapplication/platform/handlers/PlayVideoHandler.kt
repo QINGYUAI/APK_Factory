@@ -1,17 +1,18 @@
 // Author: PKQ32
 // Created: 2026-07-12
-// Description: 播放视频：支持私有文件、导出 asset: 与 content URI（经 FileProvider 授权）
+// Description: 播放视频：打开应用内播放页，支持暂停/停止与通知栏
 
 package com.example.myapplication.platform.handlers
 
 import android.content.Intent
 import android.net.Uri
-import androidx.core.content.FileProvider
 import com.example.myapplication.domain.ActionHandler
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.platform.MediaUriHelper
 import com.example.myapplication.platform.PlatformActionContext
+import com.example.myapplication.platform.media.MediaPlaybackController
+import com.example.myapplication.platform.media.VideoPlaybackActivity
 import java.io.File
 import java.io.IOException
 
@@ -30,11 +31,14 @@ class PlayVideoHandler(
     override suspend fun execute(params: Map<String, String>): ActionResult {
         val uriParam = params["uri"]?.takeIf { it.isNotBlank() }
         val pathParam = params["path"]?.takeIf { it.isNotBlank() }
+        val title = params["displayName"]?.takeIf { it.isNotBlank() } ?: "视频播放"
         return try {
+            MediaPlaybackController.init(ctx.appContext)
             val dataUri = resolvePlayUri(uriParam, pathParam)
                 ?: return ActionResult.Failed("INVALID_PARAMS", "请先选择视频文件")
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(dataUri, "video/*")
+            val intent = Intent(ctx.appContext, VideoPlaybackActivity::class.java).apply {
+                data = dataUri
+                putExtra(VideoPlaybackActivity.EXTRA_TITLE, title)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -54,20 +58,9 @@ class PlayVideoHandler(
 
     private fun resolvePlayUri(uriParam: String?, pathParam: String?): Uri? {
         when {
-            pathParam != null && MediaUriHelper.isAssetPath(pathParam) -> {
-                val asset = MediaUriHelper.assetPathOf(pathParam)
-                val cacheDir = File(ctx.appContext.cacheDir, "media-play").apply { mkdirs() }
-                val out = File(cacheDir, File(asset).name)
-                ctx.appContext.assets.open(asset).use { input ->
-                    out.outputStream().use { output -> input.copyTo(output) }
-                }
-                return fileProviderUri(out)
-            }
             pathParam != null -> {
-                val file = File(pathParam)
-                if (file.exists() && file.isFile) {
-                    return fileProviderUri(file)
-                }
+                val file = MediaUriHelper.resolvePlayableFile(ctx.appContext, pathParam)
+                if (file != null) return fileProviderUri(file)
                 if (uriParam != null) return Uri.parse(uriParam)
                 return null
             }
@@ -78,6 +71,6 @@ class PlayVideoHandler(
 
     private fun fileProviderUri(file: File): Uri {
         val authority = "${ctx.appContext.packageName}.fileprovider"
-        return FileProvider.getUriForFile(ctx.appContext, authority, file)
+        return androidx.core.content.FileProvider.getUriForFile(ctx.appContext, authority, file)
     }
 }

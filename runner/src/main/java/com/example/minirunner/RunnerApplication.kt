@@ -21,6 +21,7 @@ import com.example.myapplication.platform.handlers.SetRingerModeHandler
 import com.example.myapplication.platform.handlers.SetVolumeHandler
 import com.example.myapplication.platform.handlers.VibrateHandler
 import com.example.myapplication.platform.handlers.WifiHandler
+import com.example.myapplication.platform.media.MediaPlaybackController
 
 class RunnerApplication : Application() {
     lateinit var registry: ActionRegistry
@@ -31,6 +32,7 @@ class RunnerApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        MediaPlaybackController.init(this)
         val ctx = PlatformActionContext(this)
         registry = ActionRegistry().apply {
             register(DelayHandler())

@@ -26,7 +26,10 @@ object MediaExportHelper {
                 return@map step
             }
             val params = step.params.toMutableMap()
-            val local = resolveLocalFile(context, params) ?: return@map step
+            val local = resolveLocalFile(context, params)
+                ?: error(
+                    "步骤「${step.type}」缺少可导出的媒体文件，请在工厂中重新选择音频/视频后再导出",
+                )
             val ext = local.extension.ifBlank { if (step.type == ActionTypes.PLAY_MUSIC) "mp3" else "mp4" }
             val assetRel = "media/${step.id}_${UUID.randomUUID().toString().take(8)}.$ext"
             assets["assets/$assetRel"] = local.readBytes()

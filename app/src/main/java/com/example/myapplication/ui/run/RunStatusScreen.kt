@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -45,8 +47,10 @@ import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.engine.RunReport
 import com.example.myapplication.engine.StepOutcome
 import com.example.myapplication.platform.PermissionHelper
+import com.example.myapplication.platform.media.MediaPlaybackController
 import com.example.myapplication.ui.editor.actionIcon
 import com.example.myapplication.ui.editor.actionTitleZh
+import com.example.myapplication.ui.media.MediaControlBar
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberStatusChip
@@ -101,6 +105,7 @@ fun RunStatusScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             CyberTopBar(
                 title = "运行监控",
@@ -121,9 +126,12 @@ fun RunStatusScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item {
+            item(key = "media") {
+                MediaControlBar()
+            }
+            item(key = "status") {
                 when {
                     isThisRunning && report == null && !skipped && errorMessage == null -> {
                         CyberPanel {
@@ -135,7 +143,7 @@ fun RunStatusScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("运行中", style = MaterialTheme.typography.titleMedium)
                                     Text(
-                                        text = "正在串行执行动作链，可随时停止",
+                                        text = "动作链可停止；媒体可单独暂停/停止",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
@@ -148,7 +156,7 @@ fun RunStatusScreen(
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text("停止")
+                                Text("停止动作链")
                             }
                         }
                     }
@@ -183,7 +191,21 @@ fun RunStatusScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("整体结果", style = MaterialTheme.typography.titleMedium)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = when {
+                                            r.stopped -> "已手动停止"
+                                            r.success -> "执行成功"
+                                            else -> "执行完成（有失败）"
+                                        },
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    Text(
+                                        text = "共 ${r.stepOutcomes.size} 条步骤",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 CyberStatusChip(
                                     text = when {
                                         r.stopped -> "已停止"
@@ -193,17 +215,11 @@ fun RunStatusScreen(
                                     active = r.success,
                                 )
                             }
-                            Text(
-                                text = if (r.stopped) {
-                                    "已手动停止 · 完成 ${r.stepOutcomes.size.coerceAtLeast(0)} 条记录"
-                                } else {
-                                    "共 ${r.stepOutcomes.size} 个步骤"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                             OutlinedButton(
-                                onClick = onBack,
+                                onClick = {
+                                    MediaPlaybackController.stop()
+                                    onBack()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text("返回")
@@ -234,65 +250,61 @@ private fun StepOutcomeCard(
         (outcome.result as ActionResult.Failed).code == "STOPPED"
     val ok = outcome.result is ActionResult.Success
     val detail = when {
-        ok -> "执行完成"
+        ok -> null
         stopped -> "用户已停止"
         else -> failureDetailZh(outcome)
     }
     val hint = if (ok || stopped) null else failureActionHint(outcome)
 
-    CyberPanel {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = actionIcon(outcome.type),
-                contentDescription = null,
-                tint = when {
-                    ok -> CyberSuccess
-                    stopped -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.error
-                },
-                modifier = Modifier.size(26.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "步骤 $index · ${
-                        if (stopped) "停止" else actionTitleZh(outcome.type)
-                    }",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = outcome.type,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            CyberStatusChip(
-                text = when {
-                    ok -> "成功"
-                    stopped -> "已停止"
-                    else -> "失败"
-                },
-                active = ok,
-            )
-        }
-        Text(
-            text = detail,
-            style = MaterialTheme.typography.bodyMedium,
-            color = when {
-                ok -> MaterialTheme.colorScheme.onSurfaceVariant
-                stopped -> MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            imageVector = actionIcon(outcome.type),
+            contentDescription = null,
+            tint = when {
+                ok -> CyberSuccess
+                stopped -> MaterialTheme.colorScheme.tertiary
                 else -> MaterialTheme.colorScheme.error
             },
+            modifier = Modifier.size(20.dp),
         )
-        if (hint != null) {
-            Button(
-                onClick = { hint.onClick(context) },
-                modifier = Modifier.padding(top = 4.dp),
-            ) {
-                Text(hint.buttonLabel)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "$index · ${if (stopped) "停止" else actionTitleZh(outcome.type)}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when {
+                        ok -> MaterialTheme.colorScheme.onSurfaceVariant
+                        stopped -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                )
+            }
+            if (hint != null) {
+                Button(
+                    onClick = { hint.onClick(context) },
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text(hint.buttonLabel)
+                }
             }
         }
+        CyberStatusChip(
+            text = when {
+                ok -> "成功"
+                stopped -> "已停止"
+                else -> "失败"
+            },
+            active = ok,
+        )
     }
 }

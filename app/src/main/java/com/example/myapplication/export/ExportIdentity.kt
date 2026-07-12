@@ -15,6 +15,7 @@ object ExportIdentity {
     private val KEEP_COMPONENT_NAMES = setOf(
         "$TEMPLATE_PACKAGE.RunnerApplication",
         "$TEMPLATE_PACKAGE.RunnerActivity",
+        "$TEMPLATE_PACKAGE.ConfigSyncActivity",
     )
 
     /**

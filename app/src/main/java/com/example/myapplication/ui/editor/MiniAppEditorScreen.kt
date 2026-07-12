@@ -38,13 +38,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import com.example.myapplication.di.ServiceLocator
 import com.example.myapplication.domain.FailurePolicy
 import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.domain.model.Trigger
 import com.example.myapplication.domain.model.TriggerTypes
+import com.example.myapplication.platform.ScheduleValidation
 import com.example.myapplication.ui.icons.AppIconPicker
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberPanel
@@ -58,12 +61,14 @@ import java.util.UUID
 fun MiniAppEditorScreen(
     miniAppId: String,
     onBack: () -> Unit,
+    onOpenHistory: () -> Unit = {},
 ) {
     var app by remember { mutableStateOf<MiniApp?>(null) }
     var loadError by remember { mutableStateOf(false) }
     var addStepMenuOpen by remember { mutableStateOf(false) }
     var addTriggerMenuOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val actionTypes = remember { ServiceLocator.registry.allTypes().toList().sorted() }
 
     LaunchedEffect(miniAppId) {
@@ -91,12 +96,37 @@ fun MiniAppEditorScreen(
                 },
                 actions = {
                     val current = app
+                    OutlinedButton(
+                        onClick = onOpenHistory,
+                        enabled = current != null,
+                        modifier = Modifier.padding(end = 4.dp),
+                    ) {
+                        Text("历史")
+                    }
                     Button(
                         onClick = {
                             if (current == null) return@Button
+                            val calendarErrors = current.triggers
+                                .filter { it.enabled && TriggerTypes.isCalendarType(it.type) }
+                                .mapNotNull { t -> ScheduleValidation.validate(t)?.let { "${triggerTitleZh(t.type)}：$it" } }
+                            if (calendarErrors.isNotEmpty()) {
+                                Toast.makeText(
+                                    context,
+                                    "请先修正日程：\n${calendarErrors.joinToString("\n")}",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                return@Button
+                            }
                             scope.launch {
                                 val ordered = current.steps
                                     .mapIndexed { i, step -> step.copy(order = i) }
+                                if (current.runOnHostOpen) {
+                                    Toast.makeText(
+                                        context,
+                                        "已开启「打开本应用时自动运行」（其它小应用的同名开关将关闭）",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
                                 ServiceLocator.miniApps.save(
                                     current.copy(
                                         steps = ordered,
@@ -194,7 +224,7 @@ fun MiniAppEditorScreen(
                                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                     Text("打开本应用时自动运行")
                                     Text(
-                                        text = "hostOpened",
+                                        text = "同时只能有一个小应用开启；保存时会自动互斥",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -304,7 +334,7 @@ fun MiniAppEditorScreen(
                             CyberPanel {
                                 Text("可选触发方式", style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    text = "支持定时、充电事件、打开指定应用时自动执行",
+                                    text = "支持周期、一次/每日/每周/时段、充电解锁等事件、打开指定应用",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -339,11 +369,7 @@ fun MiniAppEditorScreen(
                                 expanded = addTriggerMenuOpen,
                                 onDismissRequest = { addTriggerMenuOpen = false },
                             ) {
-                                listOf(
-                                    TriggerTypes.SCHEDULE,
-                                    TriggerTypes.EVENT,
-                                    TriggerTypes.APP_OPENED,
-                                ).forEach { type ->
+                                editableTriggerTypes().forEach { type ->
                                     DropdownMenuItem(
                                         text = {
                                             LabeledTypeRow(
@@ -362,6 +388,11 @@ fun MiniAppEditorScreen(
                                             )
                                             app = current.copy(
                                                 triggers = current.triggers + trigger,
+                                                runOnHostOpen = if (type == TriggerTypes.HOST_OPENED) {
+                                                    true
+                                                } else {
+                                                    current.runOnHostOpen
+                                                },
                                             )
                                         },
                                     )

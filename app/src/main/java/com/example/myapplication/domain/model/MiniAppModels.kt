@@ -64,4 +64,17 @@ object TriggerTypes {
     const val EVENT = "event"
     const val APP_OPENED = "appOpened"
     const val HOST_OPENED = "hostOpened"
+    /** 每天固定时刻，params: hour / minute / daysOfWeek / excludeDates */
+    const val DAILY_AT = "dailyAt"
+    /** 一次性：year,month,day,hour,minute */
+    const val ONCE_AT = "onceAt"
+    /** 每周：hour,minute,daysOfWeek(1=周日…7=周六),excludeDates */
+    const val WEEKLY = "weekly"
+    /** 时段内循环：startHour/startMinute/endHour/endMinute/intervalMinutes/daysOfWeek/excludeDates */
+    const val WINDOW_REPEAT = "windowRepeat"
+
+    fun isCalendarType(type: String): Boolean = type == DAILY_AT ||
+        type == ONCE_AT ||
+        type == WEEKLY ||
+        type == WINDOW_REPEAT
 }

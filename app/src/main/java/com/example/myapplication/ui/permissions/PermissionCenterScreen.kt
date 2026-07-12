@@ -102,6 +102,9 @@ fun PermissionCenterScreen(
     val dndGranted = remember(refreshKey) {
         PermissionHelper.hasNotificationPolicyAccess(context)
     }
+    val exactAlarmGranted = remember(refreshKey) {
+        PermissionHelper.canScheduleExactAlarms(context)
+    }
 
     val items = listOf(
         PermissionItem(
@@ -159,6 +162,20 @@ fun PermissionCenterScreen(
             granted = dndGranted,
             primaryActionLabel = "去系统设置",
             onPrimaryAction = { PermissionHelper.openNotificationPolicySettings(context) },
+        ),
+        PermissionItem(
+            id = "exact_alarm",
+            title = "闹钟和提醒",
+            description = "用于一次执行、每日/每周定点、时段循环等精确日程。未授权时系统可能延后触发。",
+            granted = exactAlarmGranted,
+            primaryActionLabel = if (exactAlarmGranted) "打开应用详情" else "去授权",
+            onPrimaryAction = {
+                if (exactAlarmGranted) {
+                    PermissionHelper.openAppDetailsSettings(context)
+                } else {
+                    PermissionHelper.openExactAlarmSettings(context)
+                }
+            },
         ),
     )
 

@@ -71,8 +71,12 @@ fun failureActionHint(outcome: StepOutcome): FailureActionHint? {
                 PermissionHelper.openAppDetailsSettings(it)
             }
 
-        failed.code == "UNSUPPORTED" &&
-            outcome.type in setOf(ActionTypes.WIFI, ActionTypes.BLUETOOTH) ->
+        failed.code == "UNSUPPORTED" && outcome.type == ActionTypes.WIFI ->
+            FailureActionHint("打开 Wi‑Fi 设置") {
+                PermissionHelper.openWifiSettings(it)
+            }
+
+        failed.code == "UNSUPPORTED" && outcome.type == ActionTypes.BLUETOOTH ->
             FailureActionHint("打开系统设置") {
                 PermissionHelper.openAppDetailsSettings(it)
             }

@@ -8,6 +8,7 @@ import com.example.myapplication.data.MiniAppRepository
 import com.example.myapplication.data.RunLogRepository
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.RunLog
+import com.example.myapplication.platform.media.MediaPlaybackController
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,9 +69,10 @@ class MiniAppRunner(
         }
     }
 
-    /** 停止当前正在执行的动作链（延时等待中也可打断）。 */
+    /** 停止当前正在执行的动作链，并停止正在播放的媒体。 */
     fun stop() {
         runJob?.cancel()
+        MediaPlaybackController.stop()
     }
 
     private suspend fun persistLog(miniAppId: String, started: Long, report: RunReport) {

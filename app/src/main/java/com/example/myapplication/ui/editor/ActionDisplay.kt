@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
@@ -19,6 +22,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Power
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.Timer
@@ -50,10 +54,10 @@ fun actionTitleZh(type: String): String = when (type) {
     ActionTypes.SET_BRIGHTNESS -> "调节亮度"
     ActionTypes.OPEN_APP -> "打开应用"
     ActionTypes.NOTIFY -> "发送通知"
-    ActionTypes.WIFI -> "Wi‑Fi"
+    ActionTypes.WIFI -> "Wi‑Fi（打开设置）"
     ActionTypes.BLUETOOTH -> "蓝牙"
     ActionTypes.SET_RINGER_MODE -> "响铃模式"
-    ActionTypes.SCREENSHOT -> "截图"
+    ActionTypes.SCREENSHOT -> "截图（未就绪）"
     else -> type
 }
 
@@ -61,7 +65,11 @@ fun actionTitleZh(type: String): String = when (type) {
  * 触发器类型中文名。
  */
 fun triggerTitleZh(type: String): String = when (type) {
-    TriggerTypes.SCHEDULE -> "定时"
+    TriggerTypes.SCHEDULE -> "周期定时"
+    TriggerTypes.ONCE_AT -> "一次执行"
+    TriggerTypes.DAILY_AT -> "每日定点"
+    TriggerTypes.WEEKLY -> "每周重复"
+    TriggerTypes.WINDOW_REPEAT -> "时段循环"
     TriggerTypes.EVENT -> "系统事件"
     TriggerTypes.APP_OPENED -> "打开第三方应用"
     TriggerTypes.MANUAL -> "手动"
@@ -94,6 +102,10 @@ fun actionIcon(type: String): ImageVector = when (type) {
  */
 fun triggerIcon(type: String): ImageVector = when (type) {
     TriggerTypes.SCHEDULE -> Icons.Filled.Schedule
+    TriggerTypes.ONCE_AT -> Icons.Filled.Event
+    TriggerTypes.DAILY_AT -> Icons.Filled.Alarm
+    TriggerTypes.WEEKLY -> Icons.Filled.DateRange
+    TriggerTypes.WINDOW_REPEAT -> Icons.Filled.Repeat
     TriggerTypes.EVENT -> Icons.Filled.Power
     TriggerTypes.APP_OPENED -> Icons.Filled.Apps
     TriggerTypes.HOST_OPENED -> Icons.Filled.OpenInNew

@@ -6,6 +6,7 @@ package com.example.myapplication
 
 import android.app.Application
 import com.example.myapplication.di.ServiceLocator
+import com.example.myapplication.platform.media.MediaPlaybackController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +17,7 @@ class MiniAppApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        MediaPlaybackController.init(this)
         ServiceLocator.init(this)
         applicationScope.launch {
             ServiceLocator.triggerManager.resync()

@@ -28,6 +28,8 @@ internal object ExportPatcher {
         /** 额外 assets，key 为 APK 内路径如 assets/media/xxx.mp3 */
         extraAssets: Map<String, ByteArray> = emptyMap(),
         iconKey: String = "default",
+        versionCode: Int = 1,
+        versionName: String = "1.0",
     ) {
         val module = ApkModule.loadApkFile(templateFile)
         try {
@@ -42,6 +44,8 @@ internal object ExportPatcher {
             manifest.applicationClassName = COMPONENT_APPLICATION
             manifest.mainActivityClassName = COMPONENT_ACTIVITY
             manifest.setApplicationLabel(label)
+            manifest.setVersionCode(versionCode)
+            manifest.setVersionName(versionName)
             rewriteAppNameResources(module, label)
             applyLauncherIcon(module, manifest, iconKey)
 
@@ -50,7 +54,11 @@ internal object ExportPatcher {
 
             for ((path, bytes) in extraAssets) {
                 module.removeInputSource(path)
-                module.add(ByteInputSource(bytes, path))
+                // 媒体必须未压缩，否则 MediaPlayer.openFd / 部分机型无法直接播放
+                val source = ByteInputSource(bytes, path).apply {
+                    setUncompressed(true)
+                }
+                module.add(source)
             }
 
             if (outputFile.exists()) outputFile.delete()

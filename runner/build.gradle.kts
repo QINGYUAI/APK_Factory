@@ -17,9 +17,13 @@ val syncSharedSources by tasks.registering(Sync::class) {
             "**/platform/PlatformActionContext.kt",
             "**/platform/PermissionHelper.kt",
             "**/platform/MediaUriHelper.kt",
+            "**/platform/MiniAppConfigStore.kt",
+            "**/platform/ConfigSyncContract.kt",
+            "**/platform/media/**",
             "**/platform/handlers/**",
             "**/ui/icons/AppIconCatalog.kt",
             "**/ui/editor/ActionDisplay.kt",
+            "**/ui/media/MediaControlBar.kt",
         )
     }
     into(sharedSrcDir)
@@ -84,5 +88,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation("androidx.media:media:1.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }
