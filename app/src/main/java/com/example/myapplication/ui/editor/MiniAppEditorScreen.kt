@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 小应用编辑器：基本信息、动作步骤与触发器配置并保存
+// Description: 小应用编辑器：赛博分区布局与中文配置界面
 
 package com.example.myapplication.ui.editor
 
@@ -15,11 +15,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +28,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +44,10 @@ import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.domain.model.Trigger
 import com.example.myapplication.domain.model.TriggerTypes
+import com.example.myapplication.ui.theme.CyberCyan
+import com.example.myapplication.ui.theme.CyberPanel
+import com.example.myapplication.ui.theme.CyberSectionTitle
+import com.example.myapplication.ui.theme.CyberTopBar
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -71,12 +74,17 @@ fun MiniAppEditorScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("编辑小应用") },
+            CyberTopBar(
+                title = "编辑小应用",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = CyberCyan,
+                        )
                     }
                 },
                 actions = {
@@ -142,38 +150,61 @@ fun MiniAppEditorScreen(
                         .padding(padding)
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    OutlinedTextField(
-                        value = current.name,
-                        onValueChange = { app = current.copy(name = it) },
-                        label = { Text("名称") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("启用")
-                        Switch(
-                            checked = current.enabled,
-                            onCheckedChange = { app = current.copy(enabled = it) },
+                    CyberSectionTitle("基本信息")
+                    CyberPanel {
+                        OutlinedTextField(
+                            value = current.name,
+                            onValueChange = { app = current.copy(name = it) },
+                            label = { Text("名称") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
                         )
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("打开本应用时自动运行")
-                        Switch(
-                            checked = current.runOnHostOpen,
-                            onCheckedChange = { app = current.copy(runOnHostOpen = it) },
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("启用")
+                            Switch(
+                                checked = current.enabled,
+                                onCheckedChange = { app = current.copy(enabled = it) },
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text("打开本应用时自动运行")
+                                Text(
+                                    text = "hostOpened",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = current.runOnHostOpen,
+                                onCheckedChange = { app = current.copy(runOnHostOpen = it) },
+                            )
+                        }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("动作步骤", style = MaterialTheme.typography.titleMedium)
+                    CyberSectionTitle("动作步骤")
+                    if (current.steps.isEmpty()) {
+                        CyberPanel {
+                            Text(
+                                text = "尚未添加动作",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = "点击下方按钮选择震动、音量、通知等模块",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     current.steps.forEachIndexed { index, step ->
                         ActionForm(
                             step = step,
@@ -201,16 +232,16 @@ fun MiniAppEditorScreen(
                                 app = current.copy(steps = list)
                             },
                             onDelete = {
-                                app = current.copy(steps = current.steps.filterIndexed { i, _ -> i != index })
+                                app = current.copy(
+                                    steps = current.steps.filterIndexed { i, _ -> i != index },
+                                )
                             },
                         )
-                        if (index < current.steps.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
                     Box {
                         OutlinedButton(onClick = { addStepMenuOpen = true }) {
-                            Text("添加动作")
+                            Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
+                            Text("添加动作", modifier = Modifier.padding(start = 6.dp))
                         }
                         DropdownMenu(
                             expanded = addStepMenuOpen,
@@ -218,7 +249,13 @@ fun MiniAppEditorScreen(
                         ) {
                             actionTypes.forEach { type ->
                                 DropdownMenuItem(
-                                    text = { Text(type) },
+                                    text = {
+                                        LabeledTypeRow(
+                                            titleZh = actionTitleZh(type),
+                                            typeKey = type,
+                                            icon = actionIcon(type),
+                                        )
+                                    },
                                     onClick = {
                                         addStepMenuOpen = false
                                         val step = ActionStep(
@@ -235,8 +272,16 @@ fun MiniAppEditorScreen(
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("触发器", style = MaterialTheme.typography.titleMedium)
+                    CyberSectionTitle("触发器")
+                    if (current.triggers.isEmpty()) {
+                        CyberPanel {
+                            Text("可选触发方式", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = "支持定时、充电事件、打开指定应用时自动执行",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     current.triggers.forEachIndexed { index, trigger ->
                         TriggerForm(
                             trigger = trigger,
@@ -252,13 +297,11 @@ fun MiniAppEditorScreen(
                                 )
                             },
                         )
-                        if (index < current.triggers.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
                     Box {
                         OutlinedButton(onClick = { addTriggerMenuOpen = true }) {
-                            Text("添加触发器")
+                            Icon(Icons.Filled.Add, contentDescription = null, tint = CyberCyan)
+                            Text("添加触发器", modifier = Modifier.padding(start = 6.dp))
                         }
                         DropdownMenu(
                             expanded = addTriggerMenuOpen,
@@ -270,7 +313,13 @@ fun MiniAppEditorScreen(
                                 TriggerTypes.APP_OPENED,
                             ).forEach { type ->
                                 DropdownMenuItem(
-                                    text = { Text(triggerLabel(type)) },
+                                    text = {
+                                        LabeledTypeRow(
+                                            titleZh = triggerTitleZh(type),
+                                            typeKey = type,
+                                            icon = triggerIcon(type),
+                                        )
+                                    },
                                     onClick = {
                                         addTriggerMenuOpen = false
                                         val trigger = Trigger(

@@ -22,6 +22,7 @@ import com.example.myapplication.platform.handlers.FlashlightHandler
 import com.example.myapplication.platform.handlers.NotifyHandler
 import com.example.myapplication.platform.handlers.OpenAppHandler
 import com.example.myapplication.platform.handlers.PlayMusicHandler
+import com.example.myapplication.platform.handlers.PlayVideoHandler
 import com.example.myapplication.platform.handlers.ScreenshotHandler
 import com.example.myapplication.platform.handlers.SetBrightnessHandler
 import com.example.myapplication.platform.handlers.SetRingerModeHandler
@@ -59,6 +60,7 @@ object ServiceLocator {
         registry.register(SetVolumeHandler(ctx))
         registry.register(NotifyHandler(ctx))
         registry.register(PlayMusicHandler(ctx))
+        registry.register(PlayVideoHandler(ctx))
         registry.register(FlashlightHandler(ctx))
         registry.register(SetBrightnessHandler(ctx))
         registry.register(OpenAppHandler(ctx))

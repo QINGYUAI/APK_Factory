@@ -13,8 +13,8 @@ class DelayHandler : ActionHandler {
     override val type = ActionTypes.DELAY
 
     override fun validate(params: Map<String, String>): String? {
-        val ms = params["millis"]?.toLongOrNull() ?: return "millis required"
-        return if (ms < 0) "millis must be >= 0" else null
+        val ms = params["millis"]?.toLongOrNull() ?: return "需要 millis 参数（毫秒）"
+        return if (ms < 0) "millis 必须 ≥ 0" else null
     }
 
     override suspend fun execute(params: Map<String, String>): ActionResult {

@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 播放本地音频动作处理器，通过 MediaPlayer 播放 uri 或 path
+// Description: 播放本地音频动作处理器，支持系统文件选择器得到的 content URI
 
 package com.example.myapplication.platform.handlers
 
@@ -22,7 +22,7 @@ class PlayMusicHandler(
         val uri = params["uri"]
         val path = params["path"]
         if (uri.isNullOrBlank() && path.isNullOrBlank()) {
-            return "uri or path required"
+            return "请先选择音频文件"
         }
         return null
     }
@@ -31,13 +31,13 @@ class PlayMusicHandler(
         val uriParam = params["uri"]?.takeIf { it.isNotBlank() }
         val pathParam = params["path"]?.takeIf { it.isNotBlank() }
         if (uriParam == null && pathParam == null) {
-            return ActionResult.Failed("INVALID_PARAMS", "uri or path required")
+            return ActionResult.Failed("INVALID_PARAMS", "请先选择音频文件")
         }
 
         if (pathParam != null && uriParam == null) {
             val file = File(pathParam)
             if (!file.exists() || !file.isFile) {
-                return ActionResult.Failed("FILE_NOT_FOUND", "Audio file not found: $pathParam")
+                return ActionResult.Failed("FILE_NOT_FOUND", "找不到音频文件：$pathParam")
             }
         }
 
@@ -59,16 +59,16 @@ class PlayMusicHandler(
             ActionResult.Success
         } catch (e: IOException) {
             player.release()
-            ActionResult.Failed("FILE_NOT_FOUND", e.message ?: "Cannot open audio: $source")
+            ActionResult.Failed("FILE_NOT_FOUND", "无法打开音频，请重新选择文件")
         } catch (e: SecurityException) {
             player.release()
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "READ_MEDIA_AUDIO required")
+            ActionResult.Failed("NO_PERMISSION", "无法读取所选音频，请重新在配置中选择文件")
         } catch (e: IllegalArgumentException) {
             player.release()
-            ActionResult.Failed("INVALID_SOURCE", e.message ?: "Invalid audio source: $source")
+            ActionResult.Failed("INVALID_SOURCE", "无效的音频来源：$source")
         } catch (e: Exception) {
             player.release()
-            ActionResult.Failed("PLAY_FAILED", e.message ?: "Failed to play audio")
+            ActionResult.Failed("PLAY_FAILED", e.message ?: "播放失败")
         }
     }
 }

@@ -20,12 +20,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // 桌面快捷方式 / deep link：extras 或 miniapp://run/{id}
         val deepLinkMiniAppId = resolveMiniAppId(intent)
         maybeRunHostOpened(savedInstanceState)
         setContent {
             MyApplicationTheme {
                 AppNav(deepLinkMiniAppId = deepLinkMiniAppId)
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // 已在前台时再次点击桌面快捷方式：重建导航到独立控制台
+        val id = resolveMiniAppId(intent) ?: return
+        setContent {
+            MyApplicationTheme {
+                AppNav(deepLinkMiniAppId = id)
             }
         }
     }
@@ -50,13 +61,15 @@ class MainActivity : ComponentActivity() {
         private var hostOpenHandled: Boolean = false
 
         /**
-         * 从 Intent extras（miniAppId）或 data URI（miniapp://run/{id}）解析小应用 ID。
+         * 从 Intent extras（miniAppId）或 data URI 解析小应用 ID。
+         * 支持 `miniapp://app/{id}`（独立控制台）与 `miniapp://run/{id}`（兼容旧快捷方式）。
          */
         fun resolveMiniAppId(intent: Intent?): String? {
             if (intent == null) return null
             intent.getStringExtra(EXTRA_MINI_APP_ID)?.takeIf { it.isNotBlank() }?.let { return it }
             val data = intent.data ?: return null
-            if (data.scheme != "miniapp" || data.host != "run") return null
+            if (data.scheme != "miniapp") return null
+            if (data.host != "app" && data.host != "run") return null
             return data.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
         }
     }

@@ -9,7 +9,6 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.myapplication.R
 import com.example.myapplication.domain.ActionHandler
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.ActionTypes
@@ -21,8 +20,8 @@ class NotifyHandler(
     override val type = ActionTypes.NOTIFY
 
     override fun validate(params: Map<String, String>): String? {
-        if (params["title"].isNullOrBlank()) return "title required"
-        if (params["text"].isNullOrBlank()) return "text required"
+        if (params["title"].isNullOrBlank()) return "需要填写通知标题"
+        if (params["text"].isNullOrBlank()) return "需要填写通知内容"
         return null
     }
 
@@ -31,7 +30,7 @@ class NotifyHandler(
         val text = params.getValue("text")
         ensureChannel()
         val notification = NotificationCompat.Builder(ctx.appContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -42,7 +41,7 @@ class NotifyHandler(
                 .notify(System.currentTimeMillis().toInt(), notification)
             ActionResult.Success
         } catch (e: SecurityException) {
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "POST_NOTIFICATIONS required")
+            ActionResult.Failed("NO_PERMISSION", "需要「通知权限」，请在权限中心授权")
         }
     }
 
@@ -51,7 +50,7 @@ class NotifyHandler(
             ctx.appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "MiniApp Actions",
+            "小应用动作通知",
             NotificationManager.IMPORTANCE_DEFAULT,
         )
         manager.createNotificationChannel(channel)

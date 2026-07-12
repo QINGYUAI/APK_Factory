@@ -1,12 +1,15 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 小应用列表页：启用开关、运行、添加到桌面、进入编辑，FAB 创建新应用
+// Description: 小应用列表：赛博面板布局与中文文案；支持生成安装包
 
 package com.example.myapplication.ui.list
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,21 +19,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,8 +46,16 @@ import com.example.myapplication.di.ServiceLocator
 import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.ActionTypes
 import com.example.myapplication.domain.model.MiniApp
-import com.example.myapplication.platform.ShortcutHelper
+import com.example.myapplication.export.ApkExporter
+import com.example.myapplication.export.ApkInstaller
+import com.example.myapplication.ui.theme.CyberCyan
+import com.example.myapplication.ui.theme.CyberHeroHeader
+import com.example.myapplication.ui.theme.CyberPanel
+import com.example.myapplication.ui.theme.CyberStatusChip
+import com.example.myapplication.ui.theme.CyberTopBar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,19 +63,26 @@ import java.util.UUID
 fun MiniAppListScreen(
     onOpenEditor: (String) -> Unit,
     onRun: (String) -> Unit,
+    onOpenStandalone: (String) -> Unit = {},
     onOpenPermissions: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val apps by ServiceLocator.miniApps.observeAll().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    var exportingId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("小应用列表") },
+            CyberTopBar(
+                title = "应用工厂",
                 actions = {
-                    TextButton(onClick = onOpenPermissions) {
-                        Text("权限")
+                    IconButton(onClick = onOpenPermissions) {
+                        Icon(
+                            Icons.Filled.Security,
+                            contentDescription = "权限中心",
+                            tint = CyberCyan,
+                        )
                     }
                 },
             )
@@ -90,6 +112,8 @@ fun MiniAppListScreen(
                         onOpenEditor(id)
                     }
                 },
+                containerColor = CyberCyan,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "新建小应用")
             }
@@ -100,19 +124,24 @@ fun MiniAppListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(
-                    text = "暂无小应用",
-                    style = MaterialTheme.typography.titleMedium,
+                CyberHeroHeader(
+                    title = "自动化控制台",
+                    subtitle = "创建小应用，编排手机动作并一键执行",
                 )
-                Text(
-                    text = "点击右下角 + 创建",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                CyberPanel {
+                    Text(
+                        text = "暂无小应用",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "点击右下角「+」开始配置震动、音量、通知等动作",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -122,25 +151,59 @@ fun MiniAppListScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item {
+                    CyberHeroHeader(
+                        title = "自动化控制台",
+                        subtitle = "共 ${apps.size} 个小应用 · 可生成独立安装包",
+                    )
+                }
                 items(apps, key = { it.id }) { app ->
                     MiniAppListItem(
                         app = app,
+                        exporting = exportingId == app.id,
                         onToggleEnabled = { enabled ->
                             scope.launch {
                                 ServiceLocator.miniApps.save(
                                     app.copy(enabled = enabled, updatedAt = System.currentTimeMillis()),
                                 )
-                                // 启用状态变更后同步触发器注册（含 AppOpenMonitor 启停）
                                 ServiceLocator.triggerManager.resync()
                             }
                         },
                         onRun = { onRun(app.id) },
-                        onAddToDesktop = {
-                            ShortcutHelper.requestPinShortcut(
-                                context = context,
-                                miniAppId = app.id,
-                                label = app.name,
-                            )
+                        onOpenStandalone = { onOpenStandalone(app.id) },
+                        onExportApk = {
+                            if (exportingId != null) return@MiniAppListItem
+                            scope.launch {
+                                exportingId = app.id
+                                try {
+                                    if (!ApkInstaller.canRequestPackageInstalls(context)) {
+                                        Toast.makeText(
+                                            context,
+                                            "请先允许「安装未知应用」，返回后再点生成",
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                        ApkInstaller.openUnknownSourcesSettings(context)
+                                        return@launch
+                                    }
+                                    val apk = withContext(Dispatchers.IO) {
+                                        ApkExporter.export(context, app)
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        "已生成「${app.name}」安装包（桌面名：迷你应用，重复安装会覆盖）",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    ApkInstaller.install(context, apk)
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        "生成失败：${e.message ?: "未知错误"}",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                } finally {
+                                    exportingId = null
+                                }
+                            }
                         },
                         onOpenEditor = { onOpenEditor(app.id) },
                     )
@@ -150,25 +213,24 @@ fun MiniAppListScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MiniAppListItem(
     app: MiniApp,
+    exporting: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
     onRun: () -> Unit,
-    onAddToDesktop: () -> Unit,
+    onOpenStandalone: () -> Unit,
+    onExportApk: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenEditor)
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    CyberPanel {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenEditor),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -176,23 +238,44 @@ private fun MiniAppListItem(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = if (app.enabled) "已启用" else "已禁用",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "${app.steps.size} 个动作 · ${app.triggers.size} 个触发器",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            CyberStatusChip(
+                text = if (app.enabled) "已启用" else "已停用",
+                active = app.enabled,
+            )
             Switch(
                 checked = app.enabled,
                 onCheckedChange = onToggleEnabled,
             )
         }
-        Row(
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(onClick = onRun) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
                 Text("运行")
             }
-            OutlinedButton(onClick = onAddToDesktop) {
-                Text("添加到桌面")
+            OutlinedButton(onClick = onOpenStandalone) {
+                Text("控制台")
+            }
+            OutlinedButton(
+                onClick = onExportApk,
+                enabled = !exporting,
+            ) {
+                Text(if (exporting) "生成中…" else "生成安装包")
+            }
+            OutlinedButton(onClick = onOpenEditor) {
+                Text("编辑")
             }
         }
     }

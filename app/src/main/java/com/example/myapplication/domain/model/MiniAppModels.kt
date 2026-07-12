@@ -45,6 +45,7 @@ data class RunLog(
 object ActionTypes {
     const val VIBRATE = "vibrate"
     const val PLAY_MUSIC = "playMusic"
+    const val PLAY_VIDEO = "playVideo"
     const val SET_VOLUME = "setVolume"
     const val FLASHLIGHT = "flashlight"
     const val SET_BRIGHTNESS = "setBrightness"

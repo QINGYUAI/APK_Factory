@@ -18,9 +18,9 @@ class FlashlightHandler(
     override val type = ActionTypes.FLASHLIGHT
 
     override fun validate(params: Map<String, String>): String? {
-        val enabled = params["enabled"] ?: return "enabled required"
+        val enabled = params["enabled"] ?: return "需要 enabled 参数（true/false）"
         return if (enabled != "true" && enabled != "false") {
-            "enabled must be true or false"
+            "enabled 只能是 true 或 false"
         } else {
             null
         }
@@ -30,18 +30,18 @@ class FlashlightHandler(
         val enabled = params.getValue("enabled").toBoolean()
         val cameraManager =
             ctx.appContext.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-                ?: return ActionResult.Failed("NO_CAMERA", "CameraManager unavailable")
+                ?: return ActionResult.Failed("NO_CAMERA", "无法获取相机服务")
         return try {
             val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
                 val chars = cameraManager.getCameraCharacteristics(id)
                 chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-            } ?: return ActionResult.Failed("NO_FLASH", "Device has no flash unit")
+            } ?: return ActionResult.Failed("NO_FLASH", "当前设备没有闪光灯")
             cameraManager.setTorchMode(cameraId, enabled)
             ActionResult.Success
         } catch (e: SecurityException) {
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "Camera/torch permission denied")
+            ActionResult.Failed("NO_PERMISSION", "手电筒权限被拒绝")
         } catch (e: Exception) {
-            ActionResult.Failed("TORCH_FAILED", e.message ?: "Failed to set torch mode")
+            ActionResult.Failed("TORCH_FAILED", e.message ?: "开关手电筒失败")
         }
     }
 }

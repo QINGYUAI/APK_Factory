@@ -18,9 +18,9 @@ class SetRingerModeHandler(
     override val type = ActionTypes.SET_RINGER_MODE
 
     override fun validate(params: Map<String, String>): String? {
-        val mode = params["mode"] ?: return "mode required"
+        val mode = params["mode"] ?: return "需要 mode 参数（silent/vibrate/normal）"
         return if (mode !in setOf("silent", "vibrate", "normal")) {
-            "mode must be silent, vibrate, or normal"
+            "mode 只能是 silent / vibrate / normal"
         } else {
             null
         }
@@ -30,29 +30,32 @@ class SetRingerModeHandler(
         val mode = params.getValue("mode")
         val notificationManager =
             ctx.appContext.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                ?: return ActionResult.Failed("NO_NOTIFICATION", "NotificationManager unavailable")
+                ?: return ActionResult.Failed("NO_NOTIFICATION", "无法获取通知服务")
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             return ActionResult.Failed(
                 "NO_PERMISSION",
-                "ACCESS_NOTIFICATION_POLICY required; grant Do Not Disturb access in settings",
+                "需要「勿扰权限」才能切换响铃模式，请在权限中心或系统设置中授权",
             )
         }
         val audioManager =
             ctx.appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                ?: return ActionResult.Failed("NO_AUDIO", "AudioManager unavailable")
+                ?: return ActionResult.Failed("NO_AUDIO", "无法获取音频服务")
         return try {
             val ringerMode = when (mode) {
                 "silent" -> AudioManager.RINGER_MODE_SILENT
                 "vibrate" -> AudioManager.RINGER_MODE_VIBRATE
                 "normal" -> AudioManager.RINGER_MODE_NORMAL
-                else -> return ActionResult.Failed("INVALID_PARAMS", "mode must be silent, vibrate, or normal")
+                else -> return ActionResult.Failed("INVALID_PARAMS", "模式只能是 silent / vibrate / normal")
             }
             audioManager.ringerMode = ringerMode
             ActionResult.Success
         } catch (e: SecurityException) {
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "ACCESS_NOTIFICATION_POLICY required")
+            ActionResult.Failed(
+                "NO_PERMISSION",
+                "需要「勿扰权限」才能切换响铃模式，请在权限中心或系统设置中授权",
+            )
         } catch (e: Exception) {
-            ActionResult.Failed("RINGER_FAILED", e.message ?: "Failed to set ringer mode")
+            ActionResult.Failed("RINGER_FAILED", e.message ?: "切换响铃模式失败")
         }
     }
 }

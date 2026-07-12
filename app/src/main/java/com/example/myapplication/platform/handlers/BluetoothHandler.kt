@@ -21,9 +21,9 @@ class BluetoothHandler(
     override val type = ActionTypes.BLUETOOTH
 
     override fun validate(params: Map<String, String>): String? {
-        val enabled = params["enabled"] ?: return "enabled required"
+        val enabled = params["enabled"] ?: return "需要 enabled 参数（true/false）"
         return if (enabled != "true" && enabled != "false") {
-            "enabled must be true or false"
+            "enabled 只能是 true 或 false"
         } else {
             null
         }
@@ -35,27 +35,26 @@ class BluetoothHandler(
         if (ContextCompat.checkSelfPermission(ctx.appContext, Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            return ActionResult.Failed("NO_PERMISSION", "BLUETOOTH_CONNECT required")
+            return ActionResult.Failed("NO_PERMISSION", "需要「附近的设备 / 蓝牙」权限，请到应用权限设置中开启")
         }
         val adapter =
             (ctx.appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)
                 ?.adapter
-                ?: return ActionResult.Failed("NO_BLUETOOTH", "BluetoothAdapter unavailable")
+                ?: return ActionResult.Failed("NO_BLUETOOTH", "无法获取蓝牙适配器")
         return try {
             val ok = if (enabled) adapter.enable() else adapter.disable()
             if (ok) {
                 ActionResult.Success
             } else {
-                // Android 13+ 起 enable/disable 对普通应用常被拒绝
                 ActionResult.Failed(
                     "UNSUPPORTED",
-                    "Bluetooth enable/disable not allowed for this app (API ${Build.VERSION.SDK_INT})",
+                    "当前系统（API ${Build.VERSION.SDK_INT}）不允许应用直接开关蓝牙，请到系统设置操作",
                 )
             }
         } catch (e: SecurityException) {
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "BLUETOOTH_CONNECT required")
+            ActionResult.Failed("NO_PERMISSION", "需要「附近的设备 / 蓝牙」权限")
         } catch (e: Exception) {
-            ActionResult.Failed("UNSUPPORTED", e.message ?: "Failed to toggle Bluetooth")
+            ActionResult.Failed("UNSUPPORTED", e.message ?: "切换蓝牙失败")
         }
     }
 }

@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 应用 Compose 导航图：列表、编辑、运行状态、权限中心
+// Description: 应用 Compose 导航：列表、独立入口、编辑、运行、权限中心
 
 package com.example.myapplication.ui.navigation
 
@@ -15,19 +15,22 @@ import com.example.myapplication.ui.editor.MiniAppEditorScreen
 import com.example.myapplication.ui.list.MiniAppListScreen
 import com.example.myapplication.ui.permissions.PermissionCenterScreen
 import com.example.myapplication.ui.run.RunStatusScreen
+import com.example.myapplication.ui.standalone.MiniAppStandaloneScreen
 
 object Routes {
     const val LIST = "list"
+    const val STANDALONE = "standalone/{id}"
     const val EDITOR = "editor/{id}"
     const val RUN = "run/{id}"
     const val PERMISSIONS = "permissions"
 
+    fun standalone(id: String) = "standalone/$id"
     fun editor(id: String) = "editor/$id"
     fun run(id: String) = "run/$id"
 }
 
 /**
- * 根导航。若 [deepLinkMiniAppId] 非空，启动后跳转到运行页（桌面快捷方式 / deep link）。
+ * 根导航。桌面快捷方式 / deep link 进入 [standalone] 独立控制台（可配置、可运行）。
  */
 @Composable
 fun AppNav(deepLinkMiniAppId: String? = null) {
@@ -35,7 +38,7 @@ fun AppNav(deepLinkMiniAppId: String? = null) {
 
     LaunchedEffect(deepLinkMiniAppId) {
         val id = deepLinkMiniAppId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
-        navController.navigate(Routes.run(id)) {
+        navController.navigate(Routes.standalone(id)) {
             launchSingleTop = true
         }
     }
@@ -48,7 +51,26 @@ fun AppNav(deepLinkMiniAppId: String? = null) {
             MiniAppListScreen(
                 onOpenEditor = { id -> navController.navigate(Routes.editor(id)) },
                 onRun = { id -> navController.navigate(Routes.run(id)) },
+                onOpenStandalone = { id -> navController.navigate(Routes.standalone(id)) },
                 onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+            )
+        }
+        composable(
+            route = Routes.STANDALONE,
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            MiniAppStandaloneScreen(
+                miniAppId = id,
+                onRun = { navController.navigate(Routes.run(id)) },
+                onConfigure = { navController.navigate(Routes.editor(id)) },
+                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                onOpenFactory = {
+                    navController.navigate(Routes.LIST) {
+                        popUpTo(Routes.LIST) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable(

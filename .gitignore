@@ -14,3 +14,8 @@
 .cxx
 local.properties
 .worktrees/
+/app/build/
+/runner/build/
+/runner/src/shared/
+/app/src/main/assets/templates/runner.apk
+

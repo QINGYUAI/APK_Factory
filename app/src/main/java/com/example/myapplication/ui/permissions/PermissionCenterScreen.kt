@@ -1,6 +1,6 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 权限与能力中心：汇总授权状态并跳转系统设置
+// Description: 权限中心：赛博面板展示授权状态（全中文）
 
 package com.example.myapplication.ui.permissions
 
@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +43,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.myapplication.di.ServiceLocator
 import com.example.myapplication.platform.PermissionHelper
+import com.example.myapplication.ui.theme.CyberCyan
+import com.example.myapplication.ui.theme.CyberHeroHeader
+import com.example.myapplication.ui.theme.CyberPanel
+import com.example.myapplication.ui.theme.CyberStatusChip
+import com.example.myapplication.ui.theme.CyberTopBar
 import kotlinx.coroutines.launch
 
 private data class PermissionItem(
@@ -67,7 +71,6 @@ fun PermissionCenterScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
-    // 从系统设置返回后刷新授权状态，并 resync 触发器（使 AppOpenMonitor 在授权后启动）
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -104,12 +107,12 @@ fun PermissionCenterScreen(
         PermissionItem(
             id = "notifications",
             title = "通知权限",
-            description = "发送本地通知（Android 13+ 需运行时授权）",
+            description = "用于「发送通知」动作。Android 13 及以上需手动授权。",
             granted = notificationsGranted,
             primaryActionLabel = when {
-                notificationsGranted -> "通知设置"
+                notificationsGranted -> "打开通知设置"
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> "申请权限"
-                else -> "去设置"
+                else -> "去系统设置"
             },
             onPrimaryAction = {
                 if (!notificationsGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -121,7 +124,7 @@ fun PermissionCenterScreen(
             secondaryActionLabel = if (!notificationsGranted &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
             ) {
-                "通知设置"
+                "打开通知设置"
             } else {
                 null
             },
@@ -136,36 +139,41 @@ fun PermissionCenterScreen(
         PermissionItem(
             id = "usage",
             title = "使用情况访问",
-            description = "检测打开指定第三方应用时触发小应用（appOpened）。请在系统设置中为本应用开启「使用情况访问」权限；未授权时不会轮询。",
+            description = "用于「打开第三方应用时自动触发」。请在系统设置中为本应用开启使用情况访问。",
             granted = usageGranted,
-            primaryActionLabel = "去设置",
+            primaryActionLabel = "去系统设置",
             onPrimaryAction = { PermissionHelper.openUsageAccessSettings(context) },
         ),
         PermissionItem(
             id = "write_settings",
             title = "修改系统设置",
-            description = "调节屏幕亮度等（WRITE_SETTINGS）",
+            description = "用于「调节亮度」等需要写入系统设置的动作。",
             granted = writeSettingsGranted,
-            primaryActionLabel = "去设置",
+            primaryActionLabel = "去系统设置",
             onPrimaryAction = { PermissionHelper.openWriteSettings(context) },
         ),
         PermissionItem(
             id = "dnd",
-            title = "勿扰 / 通知策略",
-            description = "切换静音/震动/响铃模式（ACCESS_NOTIFICATION_POLICY）",
+            title = "勿扰与通知策略",
+            description = "用于切换静音 / 震动 / 响铃模式。",
             granted = dndGranted,
-            primaryActionLabel = "去设置",
+            primaryActionLabel = "去系统设置",
             onPrimaryAction = { PermissionHelper.openNotificationPolicySettings(context) },
         ),
     )
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("权限与能力中心") },
+            CyberTopBar(
+                title = "权限中心",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = CyberCyan,
+                        )
                     }
                 },
             )
@@ -176,68 +184,52 @@ fun PermissionCenterScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text(
-                    text = "以下能力用于动作执行；未授权时对应步骤会失败并记录原因。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                CyberHeroHeader(
+                    title = "能力授权",
+                    subtitle = "未授权时对应动作会失败并记录原因，不会导致应用崩溃",
                 )
             }
             items(items, key = { it.id }) { item ->
-                PermissionRow(item = item)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PermissionRow(item: PermissionItem) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = if (item.granted) "已授权" else "未授权",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (item.granted) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-            )
-        }
-        Text(
-            text = item.description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (!item.granted) {
-                Button(onClick = item.onPrimaryAction) {
-                    Text(item.primaryActionLabel)
-                }
-            } else {
-                OutlinedButton(onClick = item.onPrimaryAction) {
-                    Text(item.primaryActionLabel)
-                }
-            }
-            if (item.secondaryActionLabel != null && item.onSecondaryAction != null) {
-                OutlinedButton(onClick = item.onSecondaryAction) {
-                    Text(item.secondaryActionLabel)
+                CyberPanel {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        CyberStatusChip(
+                            text = if (item.granted) "已授权" else "未授权",
+                            active = item.granted,
+                        )
+                    }
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!item.granted) {
+                            Button(onClick = item.onPrimaryAction) {
+                                Text(item.primaryActionLabel)
+                            }
+                        } else {
+                            OutlinedButton(onClick = item.onPrimaryAction) {
+                                Text(item.primaryActionLabel)
+                            }
+                        }
+                        if (item.secondaryActionLabel != null && item.onSecondaryAction != null) {
+                            OutlinedButton(onClick = item.onSecondaryAction) {
+                                Text(item.secondaryActionLabel)
+                            }
+                        }
+                    }
                 }
             }
         }

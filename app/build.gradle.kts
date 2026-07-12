@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -56,6 +57,8 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    // 导出 APK 重签名
+    implementation("com.android.tools.build:apksig:8.7.3")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
@@ -63,4 +66,16 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+// 将 runner debug APK 同步为导出模板
+val syncRunnerTemplate by tasks.registering(Copy::class) {
+    dependsOn(":runner:assembleDebug")
+    from(project(":runner").layout.buildDirectory.file("outputs/apk/debug/runner-debug.apk"))
+    into(layout.projectDirectory.dir("src/main/assets/templates"))
+    rename { "runner.apk" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(syncRunnerTemplate)
 }

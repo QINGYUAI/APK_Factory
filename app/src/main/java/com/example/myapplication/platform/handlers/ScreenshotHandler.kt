@@ -16,7 +16,7 @@ class ScreenshotHandler : ActionHandler {
     override suspend fun execute(params: Map<String, String>): ActionResult {
         return ActionResult.Failed(
             "NEEDS_UI",
-            "Screenshot requires user consent UI",
+            "截图需要额外的系统授权界面，一期暂未完成，请稍后再用",
         )
     }
 }

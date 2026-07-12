@@ -18,9 +18,9 @@ class WifiHandler(
     override val type = ActionTypes.WIFI
 
     override fun validate(params: Map<String, String>): String? {
-        val enabled = params["enabled"] ?: return "enabled required"
+        val enabled = params["enabled"] ?: return "需要 enabled 参数（true/false）"
         return if (enabled != "true" && enabled != "false") {
-            "enabled must be true or false"
+            "enabled 只能是 true 或 false"
         } else {
             null
         }
@@ -29,27 +29,26 @@ class WifiHandler(
     @Suppress("DEPRECATION")
     override suspend fun execute(params: Map<String, String>): ActionResult {
         val enabled = params.getValue("enabled").toBoolean()
-        // Android 10+ 普通应用无法直接开关 Wi‑Fi
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return ActionResult.Failed(
                 "UNSUPPORTED",
-                "Apps cannot toggle Wi-Fi on Android 10+; use system Settings",
+                "Android 10 及以上不允许应用直接开关 Wi‑Fi，请到系统设置中手动操作",
             )
         }
         val wifiManager =
             ctx.appContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                ?: return ActionResult.Failed("NO_WIFI", "WifiManager unavailable")
+                ?: return ActionResult.Failed("NO_WIFI", "无法获取 Wi‑Fi 服务")
         return try {
             val ok = wifiManager.setWifiEnabled(enabled)
             if (ok) {
                 ActionResult.Success
             } else {
-                ActionResult.Failed("UNSUPPORTED", "WifiManager.setWifiEnabled returned false")
+                ActionResult.Failed("UNSUPPORTED", "系统拒绝切换 Wi‑Fi，请到系统设置中操作")
             }
         } catch (e: SecurityException) {
-            ActionResult.Failed("NO_PERMISSION", e.message ?: "Wi-Fi permission denied")
+            ActionResult.Failed("NO_PERMISSION", "没有 Wi‑Fi 相关权限")
         } catch (e: Exception) {
-            ActionResult.Failed("UNSUPPORTED", e.message ?: "Failed to toggle Wi-Fi")
+            ActionResult.Failed("UNSUPPORTED", e.message ?: "切换 Wi‑Fi 失败")
         }
     }
 }

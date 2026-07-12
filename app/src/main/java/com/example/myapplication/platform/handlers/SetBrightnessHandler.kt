@@ -16,8 +16,8 @@ class SetBrightnessHandler(
     override val type = ActionTypes.SET_BRIGHTNESS
 
     override fun validate(params: Map<String, String>): String? {
-        val percent = params["percent"]?.toIntOrNull() ?: return "percent required"
-        return if (percent !in 0..100) "percent must be 0..100" else null
+        val percent = params["percent"]?.toIntOrNull() ?: return "需要 percent 参数（0–100）"
+        return if (percent !in 0..100) "percent 必须在 0–100" else null
     }
 
     override suspend fun execute(params: Map<String, String>): ActionResult {
@@ -25,11 +25,10 @@ class SetBrightnessHandler(
         if (!Settings.System.canWrite(ctx.appContext)) {
             return ActionResult.Failed(
                 "NEEDS_SETTINGS",
-                "WRITE_SETTINGS permission required; open system settings to allow modify system settings",
+                "需要「修改系统设置」权限才能调节亮度，请在权限中心授权",
             )
         }
         return try {
-            // 关闭自动亮度，再按 0..255 写入屏幕亮度
             Settings.System.putInt(
                 ctx.appContext.contentResolver,
                 Settings.System.SCREEN_BRIGHTNESS_MODE,
@@ -45,10 +44,10 @@ class SetBrightnessHandler(
         } catch (e: SecurityException) {
             ActionResult.Failed(
                 "NEEDS_SETTINGS",
-                e.message ?: "WRITE_SETTINGS permission required",
+                "需要「修改系统设置」权限才能调节亮度",
             )
         } catch (e: Exception) {
-            ActionResult.Failed("BRIGHTNESS_FAILED", e.message ?: "Failed to set brightness")
+            ActionResult.Failed("BRIGHTNESS_FAILED", e.message ?: "调节亮度失败")
         }
     }
 }

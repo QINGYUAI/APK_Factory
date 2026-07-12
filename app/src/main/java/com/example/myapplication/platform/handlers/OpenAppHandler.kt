@@ -16,7 +16,7 @@ class OpenAppHandler(
     override val type = ActionTypes.OPEN_APP
 
     override fun validate(params: Map<String, String>): String? {
-        if (params["packageName"].isNullOrBlank()) return "packageName required"
+        if (params["packageName"].isNullOrBlank()) return "需要填写应用包名"
         return null
     }
 
@@ -24,13 +24,13 @@ class OpenAppHandler(
         val packageName = params.getValue("packageName")
         val launchIntent =
             ctx.appContext.packageManager.getLaunchIntentForPackage(packageName)
-                ?: return ActionResult.Failed("NOT_INSTALLED", "App not installed: $packageName")
+                ?: return ActionResult.Failed("NOT_INSTALLED", "未安装应用：$packageName")
         return try {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.appContext.startActivity(launchIntent)
             ActionResult.Success
         } catch (e: Exception) {
-            ActionResult.Failed("LAUNCH_FAILED", e.message ?: "Failed to launch $packageName")
+            ActionResult.Failed("LAUNCH_FAILED", e.message ?: "无法启动应用：$packageName")
         }
     }
 }

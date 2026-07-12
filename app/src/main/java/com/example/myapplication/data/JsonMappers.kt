@@ -1,11 +1,12 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: ActionStep / Trigger 与 JSON 字符串互转
+// Description: ActionStep / Trigger / MiniApp 与 JSON 互转
 
 package com.example.myapplication.data
 
 import com.example.myapplication.domain.FailurePolicy
 import com.example.myapplication.domain.model.ActionStep
+import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.domain.model.Trigger
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,7 +38,7 @@ object JsonMappers {
                         params = paramsFromJson(o.optJSONObject("params")),
                         order = o.getInt("order"),
                         onFailure = FailurePolicy.valueOf(o.optString("onFailure", "ABORT")),
-                    )
+                    ),
                 )
             }
         }
@@ -67,7 +68,7 @@ object JsonMappers {
                         type = o.getString("type"),
                         params = paramsFromJson(o.optJSONObject("params")),
                         enabled = o.optBoolean("enabled", true),
-                    )
+                    ),
                 )
             }
         }
@@ -81,5 +82,35 @@ object JsonMappers {
     private fun paramsFromJson(paramsObj: JSONObject?): Map<String, String> {
         if (paramsObj == null) return emptyMap()
         return paramsObj.keys().asSequence().associateWith { paramsObj.getString(it) }
+    }
+
+    /** 完整小应用序列化（供导出 APK / Runner 读取）。 */
+    fun miniAppToJson(app: MiniApp): String {
+        return JSONObject().apply {
+            put("id", app.id)
+            put("name", app.name)
+            put("iconKey", app.iconKey)
+            put("enabled", app.enabled)
+            put("runOnHostOpen", app.runOnHostOpen)
+            put("createdAt", app.createdAt)
+            put("updatedAt", app.updatedAt)
+            put("steps", JSONArray(stepsToJson(app.steps)))
+            put("triggers", JSONArray(triggersToJson(app.triggers)))
+        }.toString(2)
+    }
+
+    fun miniAppFromJson(json: String): MiniApp {
+        val o = JSONObject(json)
+        return MiniApp(
+            id = o.getString("id"),
+            name = o.optString("name", "迷你应用"),
+            iconKey = o.optString("iconKey", "default"),
+            enabled = o.optBoolean("enabled", true),
+            runOnHostOpen = o.optBoolean("runOnHostOpen", false),
+            createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+            updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
+            steps = stepsFromJson(o.optJSONArray("steps")?.toString() ?: "[]"),
+            triggers = triggersFromJson(o.optJSONArray("triggers")?.toString() ?: "[]"),
+        )
     }
 }

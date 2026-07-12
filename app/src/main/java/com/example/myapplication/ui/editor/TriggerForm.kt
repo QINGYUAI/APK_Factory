@@ -1,14 +1,14 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 触发器表单：定时/事件/打开应用参数编辑与启用删除
+// Description: 触发器表单：赛博面板 + 中英标签
 
 package com.example.myapplication.ui.editor
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -20,10 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.domain.model.Trigger
 import com.example.myapplication.domain.model.TriggerTypes
+import com.example.myapplication.ui.theme.CyberCyan
+import com.example.myapplication.ui.theme.CyberPanel
 
-/**
- * 单个触发器的编辑区块。
- */
 @Composable
 fun TriggerForm(
     trigger: Trigger,
@@ -31,16 +30,22 @@ fun TriggerForm(
     onUpdate: (Trigger) -> Unit,
     onDelete: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "触发器 ${index + 1} · ${triggerLabel(trigger.type)}",
-            style = MaterialTheme.typography.titleSmall,
-        )
+    CyberPanel {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = triggerIcon(trigger.type),
+                contentDescription = triggerTitleZh(trigger.type),
+                modifier = Modifier.size(28.dp),
+                tint = CyberCyan,
+            )
+            TypeLabelColumn(
+                titleZh = "触发器 ${index + 1} · ${triggerTitleZh(trigger.type)}",
+                typeKey = trigger.type,
+            )
+        }
         when (trigger.type) {
             TriggerTypes.SCHEDULE -> {
                 OutlinedTextField(
@@ -48,7 +53,8 @@ fun TriggerForm(
                     onValueChange = {
                         onUpdate(trigger.copy(params = trigger.params + ("intervalMinutes" to it)))
                     },
-                    label = { Text("间隔分钟 (intervalMinutes)") },
+                    label = { Text("间隔分钟（最短 15）") },
+                    supportingText = { Text("intervalMinutes", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -59,7 +65,8 @@ fun TriggerForm(
                     onValueChange = {
                         onUpdate(trigger.copy(params = trigger.params + ("action" to it)))
                     },
-                    label = { Text("广播 Action") },
+                    label = { Text("系统事件（一期支持充电连接）") },
+                    supportingText = { Text("action", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -70,7 +77,8 @@ fun TriggerForm(
                     onValueChange = {
                         onUpdate(trigger.copy(params = trigger.params + ("packageName" to it)))
                     },
-                    label = { Text("包名 (packageName)") },
+                    label = { Text("目标应用包名") },
+                    supportingText = { Text("packageName", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -98,14 +106,7 @@ fun TriggerForm(
     }
 }
 
-fun triggerLabel(type: String): String = when (type) {
-    TriggerTypes.SCHEDULE -> "定时"
-    TriggerTypes.EVENT -> "系统事件"
-    TriggerTypes.APP_OPENED -> "打开应用"
-    TriggerTypes.MANUAL -> "手动"
-    TriggerTypes.HOST_OPENED -> "打开本应用"
-    else -> type
-}
+fun triggerLabel(type: String): String = triggerTitleZh(type)
 
 fun defaultParamsForTrigger(type: String): Map<String, String> = when (type) {
     TriggerTypes.SCHEDULE -> mapOf("intervalMinutes" to "15")
