@@ -3,5 +3,6 @@
     <cache-path name="apk_export" path="apk-export/" />
     <cache-path name="media_cache" path="media-play/" />
     <cache-path name="config_sync" path="config-sync/" />
+    <cache-path name="updates" path="updates/" />
     <files-path name="media" path="media/" />
 </paths>

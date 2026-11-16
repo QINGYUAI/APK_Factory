@@ -26,8 +26,8 @@ android {
         applicationId = "com.example.myapplication"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 桌面显示名来自 res/values/strings.xml → 应用工厂

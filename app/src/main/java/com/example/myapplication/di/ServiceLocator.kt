@@ -31,6 +31,7 @@ import com.example.myapplication.platform.handlers.SetRingerModeHandler
 import com.example.myapplication.platform.handlers.SetVolumeHandler
 import com.example.myapplication.platform.handlers.VibrateHandler
 import com.example.myapplication.platform.handlers.WifiHandler
+import com.example.myapplication.update.UpdateManager
 
 object ServiceLocator {
     lateinit var db: AppDatabase
@@ -48,6 +49,8 @@ object ServiceLocator {
     lateinit var triggerManager: TriggerManager
         private set
     lateinit var appOpenMonitor: AppOpenMonitor
+        private set
+    lateinit var updateManager: UpdateManager
         private set
     lateinit var application: Application
         private set
@@ -93,5 +96,6 @@ object ServiceLocator {
         runner = MiniAppRunner(miniApps, runLogs, executor, debouncer)
         appOpenMonitor = AppOpenMonitor(app, runner)
         triggerManager = TriggerManager(app, miniApps, appOpenMonitor)
+        updateManager = UpdateManager(app)
     }
 }

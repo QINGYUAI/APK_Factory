@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
         // 冷启动与回到前台（防抖由 MiniAppRunner 处理）
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                ServiceLocator.updateManager.maybeAutoCheck()
                 maybeRunHostOpened()
             }
         }

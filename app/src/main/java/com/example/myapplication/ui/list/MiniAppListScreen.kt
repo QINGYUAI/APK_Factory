@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
@@ -71,6 +72,7 @@ fun MiniAppListScreen(
     onOpenStandalone: (String) -> Unit = {},
     onOpenHistory: (String) -> Unit = {},
     onOpenPermissions: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val vm: MiniAppListViewModel = viewModel()
@@ -131,6 +133,13 @@ fun MiniAppListScreen(
             CyberTopBar(
                 title = "应用工厂",
                 actions = {
+                    IconButton(onClick = onOpenHelp) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.HelpOutline,
+                            contentDescription = "使用说明与更新",
+                            tint = CyberCyan,
+                        )
+                    }
                     IconButton(onClick = onOpenPermissions) {
                         Icon(
                             Icons.Filled.Security,
