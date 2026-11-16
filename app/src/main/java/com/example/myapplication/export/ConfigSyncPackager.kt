@@ -34,11 +34,11 @@ object ConfigSyncPackager {
             zos.putNextEntry(ZipEntry(MiniAppConfigStore.JSON_NAME))
             zos.write(jsonBytes)
             zos.closeEntry()
-            for ((assetPath, bytes) in prepared.assetFiles) {
-                val entryName = assetPath.removePrefix("assets/").trimStart('/')
+            for (asset in prepared.assetFiles) {
+                val entryName = asset.apkPath.removePrefix("assets/").trimStart('/')
                 if (entryName.isBlank()) continue
                 zos.putNextEntry(ZipEntry(entryName))
-                zos.write(bytes)
+                asset.file.inputStream().buffered().use { input -> input.copyTo(zos) }
                 zos.closeEntry()
             }
         }

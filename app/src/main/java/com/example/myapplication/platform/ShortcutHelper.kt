@@ -193,4 +193,20 @@ object ShortcutHelper {
         val id = SHORTCUT_ID_PREFIX + miniAppId
         return sm.pinnedShortcuts.any { it.id == id }
     }
+
+    /**
+     * 小应用被删除后清理快捷方式：
+     * - 移除动态快捷方式；
+     * - 已固定到桌面的快捷方式置灰并提示，避免点击后进入「未找到」。
+     */
+    fun removeShortcut(context: Context, miniAppId: String) {
+        val id = SHORTCUT_ID_PREFIX + miniAppId
+        runCatching { ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(id)) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching {
+                context.getSystemService(ShortcutManager::class.java)
+                    ?.disableShortcuts(listOf(id), "小应用已删除")
+            }
+        }
+    }
 }

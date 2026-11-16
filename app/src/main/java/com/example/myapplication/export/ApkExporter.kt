@@ -9,16 +9,10 @@ import com.android.apksig.ApkSigner
 import com.example.myapplication.data.JsonMappers
 import com.example.myapplication.domain.model.MiniApp
 import java.io.File
-import java.security.KeyStore
-import java.security.PrivateKey
-import java.security.cert.X509Certificate
 
 object ApkExporter {
 
     private const val TEMPLATE_ASSET = "templates/runner.apk"
-    private const val KEYSTORE_ASSET = "templates/export.p12"
-    private const val KEY_ALIAS = "miniexport"
-    private const val KEY_PASS = "android"
 
     /**
      * 导出可安装 APK。
@@ -26,6 +20,15 @@ object ApkExporter {
      */
     fun export(context: Context, miniApp: MiniApp): File {
         val outDir = File(context.cacheDir, "apk-export").apply { mkdirs() }
+        // 只清理可安全删除的中间产物；保留近期已签名包，避免打断正在进行的安装
+        val staleBefore = System.currentTimeMillis() - 6 * 60 * 60 * 1000L
+        outDir.listFiles()?.forEach { file ->
+            if (!file.isFile) return@forEach
+            val intermediate = file.name == "template-work.apk" || file.name.endsWith("-unsigned.apk")
+            if (intermediate || file.lastModified() < staleBefore) {
+                file.delete()
+            }
+        }
         val safeName = miniApp.name.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "miniapp" }
         val templateFile = File(outDir, "template-work.apk")
         val unsigned = File(outDir, "${safeName}-unsigned.apk")
@@ -56,25 +59,20 @@ object ApkExporter {
         )
         templateFile.delete()
 
-        signApk(context, unsigned, signed)
+        if (signed.exists()) signed.delete()
+        signApk(unsigned, signed)
         unsigned.delete()
         return signed
     }
 
-    private fun signApk(context: Context, input: File, output: File) {
-        // Android 默认 KeyStore 类型与桌面 JKS 不兼容，固定使用 PKCS12
-        val keyStore = KeyStore.getInstance("PKCS12")
-        context.assets.open(KEYSTORE_ASSET).use { stream ->
-            keyStore.load(stream, KEY_PASS.toCharArray())
-        }
-        val key = keyStore.getKey(KEY_ALIAS, KEY_PASS.toCharArray()) as PrivateKey
-        val cert = keyStore.getCertificate(KEY_ALIAS) as X509Certificate
-        val signerConfig = ApkSigner.SignerConfig.Builder("miniexport", key, listOf(cert)).build()
+    private fun signApk(input: File, output: File) {
+        val signerConfig = ExportSigning.signerConfig()
         ApkSigner.Builder(listOf(signerConfig))
             .setInputApk(input)
             .setOutputApk(output)
             .setMinSdkVersion(34)
-            .setV1SigningEnabled(true)
+            // minSdk 34 只需 v2/v3；关闭 v1 可避免 JarSigner 额外读取密钥信息
+            .setV1SigningEnabled(false)
             .setV2SigningEnabled(true)
             .setV3SigningEnabled(true)
             .build()

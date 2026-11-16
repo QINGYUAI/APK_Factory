@@ -13,10 +13,14 @@ import kotlinx.coroutines.flow.map
 class RunLogRepository(private val dao: RunLogDao) {
     suspend fun append(log: RunLog) {
         dao.insert(log.toEntity())
+        // 仅保留每个小应用最近 MAX_PER_APP 条，防止长期运行撑大数据库
+        dao.prune(log.miniAppId, MAX_PER_APP)
     }
 
     fun observeForApp(miniAppId: String, limit: Int = 20): Flow<List<RunLog>> =
         dao.observeForApp(miniAppId, limit).map { list -> list.map { it.toDomain() } }
+
+    suspend fun clearForApp(miniAppId: String) = dao.deleteForApp(miniAppId)
 
     private fun RunLogEntity.toDomain(): RunLog =
         RunLog(
@@ -37,4 +41,9 @@ class RunLogRepository(private val dao: RunLogDao) {
             stepResultsJson = stepResultsJson,
             success = success,
         )
+
+    companion object {
+        /** 每个小应用保留的运行记录上限。 */
+        const val MAX_PER_APP = 200
+    }
 }

@@ -126,7 +126,7 @@ class CalendarAlarmReceiver : BroadcastReceiver() {
             try {
                 handleFire(context, miniAppId, triggerId)
             } finally {
-                pending.finish()
+                pending?.finish()
             }
         }
     }
@@ -162,22 +162,9 @@ class CalendarAlarmReceiver : BroadcastReceiver() {
     }
 }
 
-/** 兼容旧 DailyAtReceiver / DailyAtScheduler 入口 */
+/** 兼容旧入口：TriggerManager 统一走 CalendarScheduler。 */
 object DailyAtScheduler {
     fun resync(context: Context, apps: List<MiniApp>) {
         CalendarScheduler.resync(context, apps)
-    }
-}
-
-class DailyAtReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent?) {
-        CalendarAlarmReceiver().onReceive(
-            context,
-            intent?.apply {
-                if (action == CalendarScheduler.ACTION_DAILY) {
-                    action = CalendarScheduler.ACTION_FIRE
-                }
-            },
-        )
     }
 }

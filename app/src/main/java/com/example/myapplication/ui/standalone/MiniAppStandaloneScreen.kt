@@ -32,17 +32,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.myapplication.di.ServiceLocator
-import com.example.myapplication.domain.model.MiniApp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.ui.editor.actionIcon
 import com.example.myapplication.ui.editor.actionTitleZh
 import com.example.myapplication.ui.editor.triggerIcon
@@ -54,7 +49,6 @@ import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberSectionTitle
 import com.example.myapplication.ui.theme.CyberStatusChip
 import com.example.myapplication.ui.theme.CyberTopBar
-import kotlinx.coroutines.launch
 
 /**
  * 通过桌面快捷方式 / deep link 打开单个小应用时的控制台：
@@ -69,19 +63,15 @@ fun MiniAppStandaloneScreen(
     onOpenPermissions: () -> Unit,
     onOpenFactory: () -> Unit,
 ) {
-    var app by remember { mutableStateOf<MiniApp?>(null) }
-    var missing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val runningId by ServiceLocator.runner.runningId.collectAsState()
+    val vm: MiniAppStandaloneViewModel = viewModel()
+    val state by vm.state.collectAsStateWithLifecycle()
+    val runningId by vm.runningId.collectAsStateWithLifecycle()
+    val app = state.app
+    val missing = state.missing
     val isRunning = runningId == miniAppId
 
     LaunchedEffect(miniAppId) {
-        val loaded = ServiceLocator.miniApps.get(miniAppId)
-        if (loaded == null) {
-            missing = true
-        } else {
-            app = loaded
-        }
+        vm.load(miniAppId)
     }
 
     Scaffold(
@@ -107,6 +97,19 @@ fun MiniAppStandaloneScreen(
         },
     ) { padding ->
         when {
+            state.error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(state.error!!, style = MaterialTheme.typography.titleMedium)
+                    Button(onClick = onOpenFactory) { Text("返回应用工厂") }
+                }
+            }
             missing -> {
                 Column(
                     modifier = Modifier
@@ -181,17 +184,7 @@ fun MiniAppStandaloneScreen(
                                 )
                                 Switch(
                                     checked = current.enabled,
-                                    onCheckedChange = { enabled ->
-                                        scope.launch {
-                                            val updated = current.copy(
-                                                enabled = enabled,
-                                                updatedAt = System.currentTimeMillis(),
-                                            )
-                                            ServiceLocator.miniApps.save(updated)
-                                            ServiceLocator.triggerManager.resync()
-                                            app = updated
-                                        }
-                                    },
+                                    onCheckedChange = { enabled -> vm.setEnabled(enabled) },
                                 )
                             }
                         }
@@ -214,7 +207,7 @@ fun MiniAppStandaloneScreen(
                                     )
                                 }
                                 Button(
-                                    onClick = { ServiceLocator.runner.stop() },
+                                    onClick = { vm.stop() },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,

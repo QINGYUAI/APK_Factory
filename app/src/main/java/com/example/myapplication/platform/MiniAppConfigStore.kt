@@ -29,7 +29,12 @@ object MiniAppConfigStore {
     fun load(context: Context): MiniApp {
         val override = overrideJsonFile(context)
         if (override.exists() && override.isFile && override.length() > 0L) {
-            return JsonMappers.miniAppFromJson(override.readText(Charsets.UTF_8))
+            val parsed = runCatching {
+                JsonMappers.miniAppFromJson(override.readText(Charsets.UTF_8))
+            }.getOrNull()
+            if (parsed != null) return parsed
+            // 覆盖配置损坏：回退到内置 assets，避免整个小应用打不开
+            runCatching { override.delete() }
         }
         return context.assets.open(ASSET_NAME).bufferedReader().use { reader ->
             JsonMappers.miniAppFromJson(reader.readText())

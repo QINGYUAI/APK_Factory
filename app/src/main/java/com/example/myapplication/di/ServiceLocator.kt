@@ -6,6 +6,8 @@ package com.example.myapplication.di
 
 import android.app.Application
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapplication.data.MiniAppRepository
 import com.example.myapplication.data.RunLogRepository
 import com.example.myapplication.data.db.AppDatabase
@@ -47,10 +49,29 @@ object ServiceLocator {
         private set
     lateinit var appOpenMonitor: AppOpenMonitor
         private set
+    lateinit var application: Application
+        private set
     val debouncer = Debouncer()
 
+    /** 版本升级时在此注册 Migration（配合 app/schemas 导出的 JSON）。 */
+    private val migrations: Array<Migration> = arrayOf(
+        object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_run_logs_miniAppId_startedAt " +
+                        "ON run_logs (miniAppId, startedAt)",
+                )
+            }
+        },
+    )
+
     fun init(app: Application) {
-        db = Room.databaseBuilder(app, AppDatabase::class.java, "miniapp.db").build()
+        application = app
+        db = Room.databaseBuilder(app, AppDatabase::class.java, "miniapp.db")
+            .addMigrations(*migrations)
+            // 仅处理降级（装回旧版本）；升级仍必须提供 Migration，避免静默丢数据
+            .fallbackToDestructiveMigrationOnDowngrade()
+            .build()
         miniApps = MiniAppRepository(db.miniAppDao())
         runLogs = RunLogRepository(db.runLogDao())
         registry = ActionRegistry()

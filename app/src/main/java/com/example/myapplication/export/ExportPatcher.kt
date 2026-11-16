@@ -6,6 +6,7 @@ package com.example.myapplication.export
 
 import com.reandroid.apk.ApkModule
 import com.reandroid.archive.ByteInputSource
+import com.reandroid.archive.FileInputSource
 import com.reandroid.arsc.chunk.xml.AndroidManifestBlock
 import com.reandroid.arsc.chunk.xml.ResXmlAttribute
 import com.reandroid.arsc.value.ValueType
@@ -25,8 +26,8 @@ internal object ExportPatcher {
         newPackage: String,
         label: String,
         jsonBytes: ByteArray,
-        /** 额外 assets，key 为 APK 内路径如 assets/media/xxx.mp3 */
-        extraAssets: Map<String, ByteArray> = emptyMap(),
+        /** 额外 assets（媒体等），按文件流写入，避免大文件占用内存 */
+        extraAssets: List<ExportAsset> = emptyList(),
         iconKey: String = "default",
         versionCode: Int = 1,
         versionName: String = "1.0",
@@ -52,10 +53,10 @@ internal object ExportPatcher {
             module.removeInputSource(EMBEDDED_JSON_PATH)
             module.add(ByteInputSource(jsonBytes, EMBEDDED_JSON_PATH))
 
-            for ((path, bytes) in extraAssets) {
-                module.removeInputSource(path)
+            for (asset in extraAssets) {
+                module.removeInputSource(asset.apkPath)
                 // 媒体必须未压缩，否则 MediaPlayer.openFd / 部分机型无法直接播放
-                val source = ByteInputSource(bytes, path).apply {
+                val source = FileInputSource(asset.file, asset.apkPath).apply {
                     setUncompressed(true)
                 }
                 module.add(source)

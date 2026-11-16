@@ -13,14 +13,14 @@ import java.util.UUID
 
 data class PreparedMediaExport(
     val miniApp: MiniApp,
-    /** APK 内路径（含 assets/ 前缀）→ 文件字节 */
-    val assetFiles: Map<String, ByteArray>,
+    /** APK 内路径（含 assets/ 前缀）+ 本地文件；打包时流式写入 */
+    val assetFiles: List<ExportAsset>,
 )
 
 object MediaExportHelper {
 
     fun prepare(context: Context, miniApp: MiniApp): PreparedMediaExport {
-        val assets = linkedMapOf<String, ByteArray>()
+        val assets = mutableListOf<ExportAsset>()
         val steps = miniApp.steps.map { step ->
             if (step.type != ActionTypes.PLAY_MUSIC && step.type != ActionTypes.PLAY_VIDEO) {
                 return@map step
@@ -32,7 +32,7 @@ object MediaExportHelper {
                 )
             val ext = local.extension.ifBlank { if (step.type == ActionTypes.PLAY_MUSIC) "mp3" else "mp4" }
             val assetRel = "media/${step.id}_${UUID.randomUUID().toString().take(8)}.$ext"
-            assets["assets/$assetRel"] = local.readBytes()
+            assets += ExportAsset("assets/$assetRel", local)
             params["path"] = MediaUriHelper.ASSET_PREFIX + assetRel
             params["uri"] = ""
             if (params["displayName"].isNullOrBlank()) {
@@ -48,9 +48,19 @@ object MediaExportHelper {
 
     private fun resolveLocalFile(context: Context, params: Map<String, String>): File? {
         val path = params["path"]?.takeIf { it.isNotBlank() }
-        if (path != null && !MediaUriHelper.isAssetPath(path)) {
-            val file = File(path)
-            if (file.exists() && file.isFile && file.length() > 0L) return file
+        if (path != null) {
+            if (MediaUriHelper.isAssetPath(path)) {
+                // 已是内嵌资源：解到缓存文件后按流打包
+                runCatching { MediaUriHelper.extractAssetToCache(context, path) }
+                    .getOrNull()
+                    ?.takeIf { it.exists() && it.isFile && it.length() > 0L }
+                    ?.let { return it }
+            } else if (MediaUriHelper.isSyncPath(path)) {
+                MediaUriHelper.resolvePlayableFile(context, path)?.let { return it }
+            } else {
+                val file = File(path)
+                if (file.exists() && file.isFile && file.length() > 0L) return file
+            }
         }
         val uri = params["uri"]?.takeIf { it.isNotBlank() } ?: return null
         return runCatching {

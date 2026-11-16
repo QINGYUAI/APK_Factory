@@ -1,30 +1,32 @@
 // Author: PKQ32
 // Created: 2026-07-11
-// Description: 动作步骤参数校验单测（delay millis 规则）
+// Description: 动作参数校验单测：直接测真实 DelayHandler，避免与实现脱节
 
 package com.example.myapplication.domain
 
+import com.example.myapplication.platform.handlers.DelayHandler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ActionStepValidationTest {
+
+    private val handler = DelayHandler()
+
     @Test
-    fun delay_requiresNonNegativeMillis() {
-        val handler = object : ActionHandler {
-            override val type = "delay"
-            override fun validate(params: Map<String, String>): String? {
-                val ms = params["millis"]?.toLongOrNull()
-                return when {
-                    ms == null -> "millis required"
-                    ms < 0 -> "millis must be >= 0"
-                    else -> null
-                }
-            }
-            override suspend fun execute(params: Map<String, String>) = ActionResult.Success
-        }
-        assertEquals("millis required", handler.validate(emptyMap()))
-        assertEquals("millis must be >= 0", handler.validate(mapOf("millis" to "-1")))
+    fun delay_requiresMillis() {
+        assertEquals("需要 millis 参数（毫秒）", handler.validate(emptyMap()))
+        assertEquals("需要 millis 参数（毫秒）", handler.validate(mapOf("millis" to "abc")))
+    }
+
+    @Test
+    fun delay_rejectsNegativeMillis() {
+        assertEquals("millis 必须 ≥ 0", handler.validate(mapOf("millis" to "-1")))
+    }
+
+    @Test
+    fun delay_acceptsZeroAndPositive() {
+        assertNull(handler.validate(mapOf("millis" to "0")))
         assertNull(handler.validate(mapOf("millis" to "100")))
     }
 }

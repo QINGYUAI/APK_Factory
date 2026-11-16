@@ -30,13 +30,24 @@ class ActionExecutor(private val registry: ActionRegistry) {
         try {
             for (step in steps.sortedBy { it.order }) {
                 coroutineContext.ensureActive()
-                val handler = registry.get(step.type)
-                val result = if (handler == null) {
-                    ActionResult.Failed("UNKNOWN_TYPE", "Unknown action: ${step.type}")
-                } else {
-                    val err = handler.validate(step.params)
-                    if (err != null) ActionResult.Failed("INVALID_PARAMS", err)
-                    else handler.execute(step.params)
+                // 单个动作异常不应击穿整条链路：转成失败结果，交给 onFailure 策略处理
+                val result = try {
+                    val handler = registry.get(step.type)
+                    if (handler == null) {
+                        ActionResult.Failed("UNKNOWN_TYPE", "Unknown action: ${step.type}")
+                    } else {
+                        val err = handler.validate(step.params)
+                        if (err != null) {
+                            ActionResult.Failed("INVALID_PARAMS", err)
+                        } else {
+                            handler.execute(step.params)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val detail = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+                    ActionResult.Failed("EXCEPTION", "动作执行异常：$detail")
                 }
                 outcomes += StepOutcome(step.id, step.type, result)
                 if (result is ActionResult.Failed && step.onFailure == FailurePolicy.ABORT) {
@@ -51,15 +62,7 @@ class ActionExecutor(private val registry: ActionRegistry) {
             )
             return RunReport(success = false, stepOutcomes = outcomes, stopped = true)
         }
-        val success = outcomes.all { outcome ->
-            when (val r = outcome.result) {
-                is ActionResult.Success -> true
-                is ActionResult.Failed -> {
-                    val policy = steps.first { it.id == outcome.stepId }.onFailure
-                    policy == FailurePolicy.SKIP
-                }
-            }
-        }
-        return RunReport(success = success, stepOutcomes = outcomes)
+        // 能走到这里说明没有触发 ABORT；SKIP 失败按既定语义不判整链失败
+        return RunReport(success = true, stepOutcomes = outcomes)
     }
 }

@@ -15,16 +15,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,6 +41,7 @@ import com.example.myapplication.ui.theme.CyberHeroHeader
 import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberStatusChip
 import com.example.myapplication.ui.theme.CyberTopBar
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,9 +55,32 @@ fun RunHistoryScreen(
     onBack: () -> Unit,
 ) {
     val logs by ServiceLocator.runLogs.observeForApp(miniAppId, limit = 50)
-        .collectAsState(initial = emptyList())
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     val timeFmt = remember {
         SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
+    }
+    val scope = rememberCoroutineScope()
+    var confirmClear by remember { mutableStateOf(false) }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("清空运行历史？") },
+            text = { Text("将删除「${appName.ifBlank { "小应用" }}」的全部运行记录，且无法恢复。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClear = false
+                        scope.launch { ServiceLocator.runLogs.clearForApp(miniAppId) }
+                    },
+                ) {
+                    Text("清空")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text("取消") }
+            },
+        )
     }
 
     Scaffold(
@@ -66,6 +95,13 @@ fun RunHistoryScreen(
                             contentDescription = "返回",
                             tint = CyberCyan,
                         )
+                    }
+                },
+                actions = {
+                    if (logs.isNotEmpty()) {
+                        TextButton(onClick = { confirmClear = true }) {
+                            Text("清空")
+                        }
                     }
                 },
             )

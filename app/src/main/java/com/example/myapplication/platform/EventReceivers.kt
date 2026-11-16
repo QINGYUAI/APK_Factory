@@ -66,15 +66,6 @@ class SystemEventReceiver : BroadcastReceiver() {
 }
 
 /**
- * 兼容旧 Manifest 类名。
- */
-class PowerConnectedReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent?) {
-        SystemEventReceiver().onReceive(context, intent)
-    }
-}
-
-/**
  * 动态注册 SCREEN_ON / SCREEN_OFF 等无法静态声明的事件。
  */
 class DynamicScreenEventMonitor(

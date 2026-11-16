@@ -2,6 +2,8 @@
 
 - 日期：2026-07-11
 - 状态：一期已实现（分支 `feature/miniapp-factory`；截图动作为 `NEEDS_UI` 桩，Wi‑Fi 在多数机型为 `UNSUPPORTED`；计划见 docs/superpowers/plans/2026-07-11-miniapp-factory.md）
+- 2026-11-16：完成稳定性加固与 ViewModel 状态层改造（重复接收器、执行器异常兜底、流式导出、本机签名、Room schema、日程单测），变更清单见 `需求.md`
+- 2026-11-16（第二轮）：运行会话取消作用域、日志保留与索引迁移、配置同步原子替换、JSON 容错与动作保存校验、快捷方式清理，详见 `需求.md`
 - 工程：`D:\web\android`（现有 Kotlin + Jetpack Compose 模板工程）
 - 选定方案：方案一 — 动作插件 + 本地编排引擎
 

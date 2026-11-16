@@ -15,8 +15,7 @@ local.properties
 **/local.properties
 *.keystore
 *.jks
-# 导出签名证书由工程托管，允许提交
-!app/src/main/assets/templates/export.p12
+*.p12
 
 # Runner 模板体积大，由 assemble/sync 任务生成
 /app/src/main/assets/templates/runner.apk

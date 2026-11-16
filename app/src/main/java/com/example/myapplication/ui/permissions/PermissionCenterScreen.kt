@@ -30,10 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -41,14 +37,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.myapplication.di.ServiceLocator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.platform.PermissionHelper
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberHeroHeader
 import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberStatusChip
 import com.example.myapplication.ui.theme.CyberTopBar
-import kotlinx.coroutines.launch
 
 private data class PermissionItem(
     val id: String,
@@ -67,17 +63,14 @@ fun PermissionCenterScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    var refreshKey by remember { mutableIntStateOf(0) }
+    val vm: PermissionCenterViewModel = viewModel()
+    val state by vm.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                refreshKey++
-                scope.launch {
-                    ServiceLocator.triggerManager.resync()
-                }
+                vm.refresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -87,24 +80,14 @@ fun PermissionCenterScreen(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        refreshKey++
+        vm.refresh()
     }
 
-    val notificationsGranted = remember(refreshKey) {
-        PermissionHelper.hasNotificationsPermission(context)
-    }
-    val usageGranted = remember(refreshKey) {
-        PermissionHelper.hasUsageAccess(context)
-    }
-    val writeSettingsGranted = remember(refreshKey) {
-        PermissionHelper.canWriteSettings(context)
-    }
-    val dndGranted = remember(refreshKey) {
-        PermissionHelper.hasNotificationPolicyAccess(context)
-    }
-    val exactAlarmGranted = remember(refreshKey) {
-        PermissionHelper.canScheduleExactAlarms(context)
-    }
+    val notificationsGranted = state.notifications
+    val usageGranted = state.usageAccess
+    val writeSettingsGranted = state.writeSettings
+    val dndGranted = state.dndAccess
+    val exactAlarmGranted = state.exactAlarm
 
     val items = listOf(
         PermissionItem(

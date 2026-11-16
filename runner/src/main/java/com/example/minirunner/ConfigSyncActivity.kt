@@ -8,6 +8,7 @@ import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
+import com.example.myapplication.data.JsonMappers
 import com.example.myapplication.platform.ConfigSyncContract
 import com.example.myapplication.platform.MiniAppConfigStore
 import java.io.BufferedInputStream
@@ -41,41 +42,73 @@ class ConfigSyncActivity : Activity() {
 
     private fun applyZip(uri: Uri) {
         val dest = MiniAppConfigStore.configDir(this)
-        if (dest.exists()) dest.deleteRecursively()
-        dest.mkdirs()
+        // 先解压到暂存目录并校验，成功后再原子替换，避免半包配置把可用配置覆盖坏
+        val staging = File(filesDir, MiniAppConfigStore.DIR_NAME + ".tmp")
+        staging.deleteRecursively()
+        if (!staging.mkdirs()) error("无法创建配置目录")
 
-        contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(BufferedInputStream(input)).use { zis ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    val name = entry.name.trimStart('/', '\\')
-                    if (name.isBlank() || name.contains("..")) {
+        try {
+            var total = 0L
+            contentResolver.openInputStream(uri)?.use { input ->
+                ZipInputStream(BufferedInputStream(input)).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val name = entry.name.trimStart('/', '\\')
+                        if (name.isBlank() || name.contains("..")) {
+                            zis.closeEntry()
+                            entry = zis.nextEntry
+                            continue
+                        }
+                        val outFile = File(staging, name)
+                        val root = staging.canonicalPath + File.separator
+                        if (!outFile.canonicalPath.startsWith(root)) {
+                            zis.closeEntry()
+                            entry = zis.nextEntry
+                            continue
+                        }
+                        if (entry.isDirectory) {
+                            outFile.mkdirs()
+                        } else {
+                            outFile.parentFile?.mkdirs()
+                            outFile.outputStream().use { output ->
+                                total += zis.copyTo(output)
+                            }
+                            if (total > MAX_CONFIG_BYTES) error("配置包过大，已拒绝同步")
+                        }
                         zis.closeEntry()
                         entry = zis.nextEntry
-                        continue
                     }
-                    val outFile = File(dest, name)
-                    if (entry.isDirectory) {
-                        outFile.mkdirs()
-                    } else {
-                        outFile.parentFile?.mkdirs()
-                        outFile.outputStream().use { output -> zis.copyTo(output) }
-                    }
-                    zis.closeEntry()
-                    entry = zis.nextEntry
                 }
-            }
-        } ?: error("无法读取配置包")
+            } ?: error("无法读取配置包")
 
-        val json = MiniAppConfigStore.overrideJsonFile(this)
-        if (!json.exists() || json.length() <= 0L) {
-            dest.deleteRecursively()
-            error("配置包缺少 miniapp.json")
+            val json = File(staging, MiniAppConfigStore.JSON_NAME)
+            if (!json.exists() || json.length() <= 0L) {
+                error("配置包缺少 miniapp.json")
+            }
+            runCatching { JsonMappers.miniAppFromJson(json.readText(Charsets.UTF_8)) }
+                .getOrElse { error("配置内容无效：${it.message ?: "无法解析"}") }
+
+            if (dest.exists() && !dest.deleteRecursively()) {
+                error("无法清理旧配置")
+            }
+            if (!staging.renameTo(dest)) {
+                // 极少数文件系统不支持 rename：退回拷贝
+                if (!staging.copyRecursively(dest, overwrite = true)) error("无法写入配置文件")
+                staging.deleteRecursively()
+            }
+        } catch (e: Exception) {
+            staging.deleteRecursively()
+            throw e
         }
     }
 
     private fun finishWithToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         finish()
+    }
+
+    companion object {
+        /** 配置包体积上限，防止异常/恶意包撑爆存储。 */
+        private const val MAX_CONFIG_BYTES = 512L * 1024 * 1024
     }
 }

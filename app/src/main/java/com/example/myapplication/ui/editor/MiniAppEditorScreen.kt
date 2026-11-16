@@ -35,26 +35,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.di.ServiceLocator
-import com.example.myapplication.domain.FailurePolicy
-import com.example.myapplication.domain.model.ActionStep
-import com.example.myapplication.domain.model.MiniApp
-import com.example.myapplication.domain.model.Trigger
-import com.example.myapplication.domain.model.TriggerTypes
-import com.example.myapplication.platform.ScheduleValidation
 import com.example.myapplication.ui.icons.AppIconPicker
 import com.example.myapplication.ui.theme.CyberCyan
 import com.example.myapplication.ui.theme.CyberPanel
 import com.example.myapplication.ui.theme.CyberSectionTitle
 import com.example.myapplication.ui.theme.CyberTopBar
-import kotlinx.coroutines.launch
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,21 +56,23 @@ fun MiniAppEditorScreen(
     onBack: () -> Unit,
     onOpenHistory: () -> Unit = {},
 ) {
-    var app by remember { mutableStateOf<MiniApp?>(null) }
-    var loadError by remember { mutableStateOf(false) }
+    val vm: MiniAppEditorViewModel = viewModel()
+    val state by vm.state.collectAsStateWithLifecycle()
     var addStepMenuOpen by remember { mutableStateOf(false) }
     var addTriggerMenuOpen by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val actionTypes = remember { ServiceLocator.registry.allTypes().toList().sorted() }
 
     LaunchedEffect(miniAppId) {
-        val loaded = ServiceLocator.miniApps.get(miniAppId)
-        if (loaded == null) {
-            loadError = true
-        } else {
-            app = loaded
+        vm.load(miniAppId)
+    }
+    LaunchedEffect(Unit) {
+        vm.messages.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
+    }
+    LaunchedEffect(Unit) {
+        vm.saved.collect { onBack() }
     }
 
     Scaffold(
@@ -95,7 +90,7 @@ fun MiniAppEditorScreen(
                     }
                 },
                 actions = {
-                    val current = app
+                    val current = state.app
                     OutlinedButton(
                         onClick = onOpenHistory,
                         enabled = current != null,
@@ -105,37 +100,15 @@ fun MiniAppEditorScreen(
                     }
                     Button(
                         onClick = {
-                            if (current == null) return@Button
-                            val calendarErrors = current.triggers
-                                .filter { it.enabled && TriggerTypes.isCalendarType(it.type) }
-                                .mapNotNull { t -> ScheduleValidation.validate(t)?.let { "${triggerTitleZh(t.type)}：$it" } }
-                            if (calendarErrors.isNotEmpty()) {
+                            val current = state.app ?: return@Button
+                            if (current.runOnHostOpen) {
                                 Toast.makeText(
                                     context,
-                                    "请先修正日程：\n${calendarErrors.joinToString("\n")}",
-                                    Toast.LENGTH_LONG,
+                                    "已开启「打开本应用时自动运行」（其它小应用的同名开关将关闭）",
+                                    Toast.LENGTH_SHORT,
                                 ).show()
-                                return@Button
                             }
-                            scope.launch {
-                                val ordered = current.steps
-                                    .mapIndexed { i, step -> step.copy(order = i) }
-                                if (current.runOnHostOpen) {
-                                    Toast.makeText(
-                                        context,
-                                        "已开启「打开本应用时自动运行」（其它小应用的同名开关将关闭）",
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                                ServiceLocator.miniApps.save(
-                                    current.copy(
-                                        steps = ordered,
-                                        updatedAt = System.currentTimeMillis(),
-                                    ),
-                                )
-                                ServiceLocator.triggerManager.resync()
-                                onBack()
-                            }
+                            vm.save()
                         },
                         enabled = current != null,
                         modifier = Modifier.padding(end = 8.dp),
@@ -147,7 +120,22 @@ fun MiniAppEditorScreen(
         },
     ) { padding ->
         when {
-            loadError -> {
+            state.error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(state.error!!)
+                    Button(onClick = onBack, modifier = Modifier.padding(top = 16.dp)) {
+                        Text("返回")
+                    }
+                }
+            }
+            state.notFound -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -162,7 +150,7 @@ fun MiniAppEditorScreen(
                     }
                 }
             }
-            app == null -> {
+            state.app == null -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -175,7 +163,7 @@ fun MiniAppEditorScreen(
                 }
             }
             else -> {
-                val current = app!!
+                val current = state.app!!
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -190,7 +178,7 @@ fun MiniAppEditorScreen(
                         CyberPanel {
                             OutlinedTextField(
                                 value = current.name,
-                                onValueChange = { app = current.copy(name = it) },
+                                onValueChange = { value -> vm.update { it.copy(name = value) } },
                                 label = { Text("名称") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -203,7 +191,7 @@ fun MiniAppEditorScreen(
                             )
                             AppIconPicker(
                                 selectedKey = current.iconKey,
-                                onSelect = { app = current.copy(iconKey = it) },
+                                onSelect = { key -> vm.update { it.copy(iconKey = key) } },
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -213,7 +201,7 @@ fun MiniAppEditorScreen(
                                 Text("启用")
                                 Switch(
                                     checked = current.enabled,
-                                    onCheckedChange = { app = current.copy(enabled = it) },
+                                    onCheckedChange = { enabled -> vm.update { it.copy(enabled = enabled) } },
                                 )
                             }
                             Row(
@@ -231,7 +219,9 @@ fun MiniAppEditorScreen(
                                 }
                                 Switch(
                                     checked = current.runOnHostOpen,
-                                    onCheckedChange = { app = current.copy(runOnHostOpen = it) },
+                                    onCheckedChange = { enabled ->
+                                        vm.update { it.copy(runOnHostOpen = enabled) }
+                                    },
                                 )
                             }
                         }
@@ -262,32 +252,10 @@ fun MiniAppEditorScreen(
                             step = step,
                             index = index,
                             total = current.steps.size,
-                            onUpdate = { updated ->
-                                val list = current.steps.toMutableList()
-                                list[index] = updated
-                                app = current.copy(steps = list)
-                            },
-                            onMoveUp = {
-                                if (index <= 0) return@ActionForm
-                                val list = current.steps.toMutableList()
-                                val tmp = list[index - 1]
-                                list[index - 1] = list[index]
-                                list[index] = tmp
-                                app = current.copy(steps = list)
-                            },
-                            onMoveDown = {
-                                if (index >= current.steps.lastIndex) return@ActionForm
-                                val list = current.steps.toMutableList()
-                                val tmp = list[index + 1]
-                                list[index + 1] = list[index]
-                                list[index] = tmp
-                                app = current.copy(steps = list)
-                            },
-                            onDelete = {
-                                app = current.copy(
-                                    steps = current.steps.filterIndexed { i, _ -> i != index },
-                                )
-                            },
+                            onUpdate = { updated -> vm.replaceStep(index, updated) },
+                            onMoveUp = { vm.moveStep(index, -1) },
+                            onMoveDown = { vm.moveStep(index, 1) },
+                            onDelete = { vm.removeStep(index) },
                         )
                     }
                     item(key = "add-step") {
@@ -311,14 +279,7 @@ fun MiniAppEditorScreen(
                                         },
                                         onClick = {
                                             addStepMenuOpen = false
-                                            val step = ActionStep(
-                                                id = UUID.randomUUID().toString(),
-                                                type = type,
-                                                params = defaultParamsForType(type),
-                                                order = current.steps.size,
-                                                onFailure = FailurePolicy.ABORT,
-                                            )
-                                            app = current.copy(steps = current.steps + step)
+                                            vm.addStep(type)
                                         },
                                     )
                                 }
@@ -347,16 +308,8 @@ fun MiniAppEditorScreen(
                         TriggerForm(
                             trigger = trigger,
                             index = index,
-                            onUpdate = { updated ->
-                                val list = current.triggers.toMutableList()
-                                list[index] = updated
-                                app = current.copy(triggers = list)
-                            },
-                            onDelete = {
-                                app = current.copy(
-                                    triggers = current.triggers.filterIndexed { i, _ -> i != index },
-                                )
-                            },
+                            onUpdate = { updated -> vm.replaceTrigger(index, updated) },
+                            onDelete = { vm.removeTrigger(index) },
                         )
                     }
                     item(key = "add-trigger") {
@@ -380,20 +333,7 @@ fun MiniAppEditorScreen(
                                         },
                                         onClick = {
                                             addTriggerMenuOpen = false
-                                            val trigger = Trigger(
-                                                id = UUID.randomUUID().toString(),
-                                                type = type,
-                                                params = defaultParamsForTrigger(type),
-                                                enabled = true,
-                                            )
-                                            app = current.copy(
-                                                triggers = current.triggers + trigger,
-                                                runOnHostOpen = if (type == TriggerTypes.HOST_OPENED) {
-                                                    true
-                                                } else {
-                                                    current.runOnHostOpen
-                                                },
-                                            )
+                                            vm.addTrigger(type)
                                         },
                                     )
                                 }

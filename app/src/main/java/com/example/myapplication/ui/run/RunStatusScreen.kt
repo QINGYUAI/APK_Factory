@@ -33,18 +33,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.myapplication.di.ServiceLocator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.domain.ActionResult
-import com.example.myapplication.engine.RunReport
 import com.example.myapplication.engine.StepOutcome
 import com.example.myapplication.platform.PermissionHelper
 import com.example.myapplication.platform.media.MediaPlaybackController
@@ -64,11 +60,13 @@ fun RunStatusScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val activeRunningId by ServiceLocator.runner.runningId.collectAsState()
-    var report by remember { mutableStateOf<RunReport?>(null) }
-    var running by remember { mutableStateOf(true) }
-    var skipped by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val vm: RunStatusViewModel = viewModel()
+    val state by vm.state.collectAsStateWithLifecycle()
+    val activeRunningId by vm.runningId.collectAsStateWithLifecycle()
+    val report = state.report
+    val running = state.running
+    val skipped = state.skipped
+    val errorMessage = state.error
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -83,22 +81,7 @@ fun RunStatusScreen(
     }
 
     LaunchedEffect(miniAppId) {
-        running = true
-        skipped = false
-        errorMessage = null
-        report = null
-        try {
-            val result = ServiceLocator.runner.run(miniAppId, "manual")
-            if (result == null) {
-                skipped = true
-            } else {
-                report = result
-            }
-        } catch (e: Exception) {
-            errorMessage = e.message ?: "执行失败"
-        } finally {
-            running = false
-        }
+        vm.start(miniAppId)
     }
 
     val isThisRunning = running || activeRunningId == miniAppId
@@ -150,7 +133,7 @@ fun RunStatusScreen(
                                 CyberStatusChip(text = "运行中", active = true)
                             }
                             Button(
-                                onClick = { ServiceLocator.runner.stop() },
+                                onClick = { vm.stop() },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.error,
                                 ),
@@ -175,7 +158,7 @@ fun RunStatusScreen(
                             )
                             if (activeRunningId != null) {
                                 OutlinedButton(
-                                    onClick = { ServiceLocator.runner.stop() },
+                                    onClick = { vm.stop() },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text("停止当前运行")
@@ -215,14 +198,28 @@ fun RunStatusScreen(
                                     active = r.success,
                                 )
                             }
-                            OutlinedButton(
-                                onClick = {
-                                    MediaPlaybackController.stop()
-                                    onBack()
-                                },
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Text("返回")
+                                OutlinedButton(
+                                    onClick = {
+                                        MediaPlaybackController.stop()
+                                        vm.rerun(miniAppId)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text("重新运行")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        MediaPlaybackController.stop()
+                                        onBack()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text("返回")
+                                }
                             }
                         }
                     }

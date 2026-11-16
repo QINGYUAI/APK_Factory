@@ -72,6 +72,7 @@ object ExportPreflight {
         if (miniApp.runOnHostOpen) {
             warnings += "「打开本应用时自动运行」仅对工厂生效，不会带到独立安装包"
         }
+        warnings += "独立包使用本机专属签名：卸载「应用工厂」或清除其数据后，将无法覆盖更新已安装的小应用"
 
         return ExportPreflightResult(errors = errors, warnings = warnings)
     }

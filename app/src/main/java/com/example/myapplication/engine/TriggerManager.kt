@@ -16,6 +16,8 @@ import com.example.myapplication.platform.AppOpenMonitor
 import com.example.myapplication.platform.DailyAtScheduler
 import com.example.myapplication.platform.DynamicScreenEventMonitor
 import com.example.myapplication.worker.ScheduleMiniAppWorker
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
 
 /**
@@ -33,7 +35,14 @@ class TriggerManager(
     }
     private val dynamicEvents = DynamicScreenEventMonitor(app)
 
-    suspend fun resync() {
+    /** 多个入口（启动、保存、权限刷新、Worker）可能并发触发，串行化避免 WorkManager/闹钟重复下发。 */
+    private val resyncMutex = Mutex()
+
+    suspend fun resync() = resyncMutex.withLock {
+        resyncLocked()
+    }
+
+    private suspend fun resyncLocked() {
         val apps = miniApps.getAll()
         val desired = linkedSetOf<String>()
         val dynamicActions = linkedSetOf<String>()

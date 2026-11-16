@@ -6,14 +6,11 @@ package com.example.myapplication.platform
 
 import com.example.myapplication.domain.model.Trigger
 import com.example.myapplication.domain.model.TriggerTypes
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 object ScheduleTimeMath {
-
-    private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     fun parseDaysOfWeek(raw: String?): Set<Int> {
         val parsed = raw.orEmpty()
@@ -30,7 +27,14 @@ object ScheduleTimeMath {
             .filter { it.matches(Regex("""\d{4}-\d{2}-\d{2}""")) }
             .toSet()
 
-    fun dateKey(cal: Calendar): String = synchronized(dateFmt) { dateFmt.format(cal.time) }
+    /** 直接取 Calendar 字段，避免 SimpleDateFormat 固定时区与 Calendar 不一致。 */
+    fun dateKey(cal: Calendar): String = String.format(
+        Locale.US,
+        "%04d-%02d-%02d",
+        cal.get(Calendar.YEAR),
+        cal.get(Calendar.MONTH) + 1,
+        cal.get(Calendar.DAY_OF_MONTH),
+    )
 
     fun isExcluded(cal: Calendar, excludeDates: Set<String>): Boolean =
         dateKey(cal) in excludeDates

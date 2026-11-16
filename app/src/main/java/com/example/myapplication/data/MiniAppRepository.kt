@@ -20,7 +20,8 @@ class MiniAppRepository(private val dao: MiniAppDao) {
 
     suspend fun save(app: MiniApp) {
         if (app.runOnHostOpen) {
-            clearOtherHostOpenFlags(exceptId = app.id)
+            // 一次 UPDATE 完成互斥，避免逐条读取再写回
+            dao.clearHostOpenFlags(exceptId = app.id, now = System.currentTimeMillis())
         }
         dao.upsert(app.toEntity())
     }
@@ -31,14 +32,6 @@ class MiniAppRepository(private val dao: MiniAppDao) {
 
     suspend fun getHostOpenApp(): MiniApp? = dao.getHostOpenApp()?.toDomain()
 
-    /** 保证同一时间只有一个小应用占用「打开工厂自动运行」。 */
-    private suspend fun clearOtherHostOpenFlags(exceptId: String) {
-        dao.getAll()
-            .filter { it.id != exceptId && it.runOnHostOpen }
-            .forEach { entity ->
-                dao.upsert(entity.copy(runOnHostOpen = false, updatedAt = System.currentTimeMillis()))
-            }
-    }
     private fun MiniAppEntity.toDomain(): MiniApp =
         MiniApp(
             id = id,

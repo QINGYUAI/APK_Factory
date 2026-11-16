@@ -9,7 +9,12 @@ import com.example.myapplication.data.RunLogRepository
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.RunLog
 import com.example.myapplication.platform.media.MediaPlaybackController
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,15 +22,22 @@ import kotlinx.coroutines.sync.Mutex
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
 
 class MiniAppRunner(
     private val miniApps: MiniAppRepository,
     private val runLogs: RunLogRepository,
     private val executor: ActionExecutor,
     private val debouncer: Debouncer,
+    /** 停止时附带关闭媒体播放；测试可注入空实现 */
+    private val onStopMedia: () -> Unit = { MediaPlaybackController.stop() },
 ) {
     private val mutex = Mutex()
+
+    /**
+     * 动作链运行在 Runner 自己的作用域里：
+     * [stop] 只取消本次动作链，不会连带取消调用方（ViewModel / 轮询 / 广播接收器）的协程。
+     */
+    private val runScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var runJob: Job? = null
 
     private val _runningId = MutableStateFlow<String?>(null)
@@ -53,13 +65,27 @@ class MiniAppRunner(
                     StepOutcome("-", "-", ActionResult.Failed("DISABLED", "MiniApp disabled")),
                 ),
             )
-            runJob = coroutineContext[Job]
             _runningId.value = miniAppId
             val started = System.currentTimeMillis()
             return try {
-                val report = executor.run(app.steps)
-                persistLog(miniAppId, started, report)
-                report
+                val job = runScope.async {
+                    val report = executor.run(app.steps)
+                    persistLog(miniAppId, started, report)
+                    report
+                }
+                runJob = job
+                try {
+                    job.await()
+                } catch (e: CancellationException) {
+                    // 主动停止：返回可展示的停止结果；调用方协程不受影响
+                    if (job.isCancelled) {
+                        RunReport(success = false, stopped = true, stepOutcomes = emptyList())
+                    } else {
+                        // 调用方被取消：连带取消动作链，避免遗留孤儿任务
+                        job.cancel()
+                        throw e
+                    }
+                }
             } finally {
                 runJob = null
                 _runningId.value = null
@@ -72,7 +98,7 @@ class MiniAppRunner(
     /** 停止当前正在执行的动作链，并停止正在播放的媒体。 */
     fun stop() {
         runJob?.cancel()
-        MediaPlaybackController.stop()
+        runCatching { onStopMedia() }
     }
 
     private suspend fun persistLog(miniAppId: String, started: Long, report: RunReport) {

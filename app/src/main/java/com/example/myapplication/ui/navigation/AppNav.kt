@@ -40,14 +40,23 @@ object Routes {
 }
 
 /**
+ * deep link 目标。token 用于区分「同一个 id 的再次打开」，
+ * 避免 LaunchedEffect 因参数相等而不重新导航。
+ */
+data class DeepLinkTarget(
+    val miniAppId: String,
+    val token: Long,
+)
+
+/**
  * 根导航。桌面快捷方式 / deep link 进入 [standalone] 独立控制台（可配置、可运行）。
  */
 @Composable
-fun AppNav(deepLinkMiniAppId: String? = null) {
+fun AppNav(deepLinkTarget: DeepLinkTarget? = null) {
     val navController = rememberNavController()
 
-    LaunchedEffect(deepLinkMiniAppId) {
-        val id = deepLinkMiniAppId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+    LaunchedEffect(deepLinkTarget) {
+        val id = deepLinkTarget?.miniAppId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
         navController.navigate(Routes.standalone(id)) {
             launchSingleTop = true
         }

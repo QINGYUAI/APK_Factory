@@ -41,6 +41,11 @@ android {
     }
 }
 
+ksp {
+    // Room 导出版本 schema，供后续 Migration / AutoMigration 使用
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -54,6 +59,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
@@ -62,6 +68,8 @@ dependencies {
     implementation("com.android.tools.build:apksig:8.7.3")
     implementation("io.github.reandroid:ARSCLib:1.4.0")
     testImplementation(libs.junit)
+    // 本地 JVM 单测中的 org.json 来自 android.jar 桩，需真实实现才能测序列化
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -89,7 +97,7 @@ val assembleRunnerTemplate by tasks.registering(Exec::class) {
     dependsOn(prepareRunnerLocalProps)
     workingDir = rootProject.projectDir
     if (isWindows) {
-        commandLine("cmd", "/c", "gradlew.bat", "-p", "runner", "assembleDebug")
+        commandLine("cmd", "/c", ".\\gradlew.bat", "-p", "runner", "assembleDebug")
     } else {
         commandLine("./gradlew", "-p", "runner", "assembleDebug")
     }
