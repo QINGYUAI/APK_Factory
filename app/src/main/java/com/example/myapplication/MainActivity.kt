@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun maybeRunHostOpened() {
         val app = ServiceLocator.miniApps.getHostOpenApp() ?: return
-        ServiceLocator.runner.run(app.id, TriggerTypes.HOST_OPENED)
+        ServiceLocator.runner.runQueued(app.id, TriggerTypes.HOST_OPENED)
     }
 
     companion object {

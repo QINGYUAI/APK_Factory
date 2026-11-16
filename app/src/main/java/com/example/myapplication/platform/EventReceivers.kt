@@ -47,7 +47,7 @@ class SystemEventReceiver : BroadcastReceiver() {
                                 trigger.params["action"] == action
                         }
                         if (matched) {
-                            ServiceLocator.runner.run(app.id, TriggerTypes.EVENT)
+                            ServiceLocator.runner.runQueued(app.id, TriggerTypes.EVENT)
                         }
                     }
                 } finally {

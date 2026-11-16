@@ -17,8 +17,10 @@ val syncSharedSources by tasks.registering(Sync::class) {
             "**/platform/PlatformActionContext.kt",
             "**/platform/PermissionHelper.kt",
             "**/platform/MediaUriHelper.kt",
-            "**/platform/MiniAppConfigStore.kt",
             "**/platform/ConfigSyncContract.kt",
+            "**/platform/MiniAppConfigStore.kt",
+            "**/platform/ScheduleTimeMath.kt",
+            "**/platform/ScheduleValidation.kt",
             "**/platform/RuntimeEffectTracker.kt",
             "**/platform/media/**",
             "**/platform/handlers/**",
@@ -91,5 +93,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation("androidx.media:media:1.7.0")
+    implementation(libs.androidx.work.runtime.ktx)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }

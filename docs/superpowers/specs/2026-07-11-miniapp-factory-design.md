@@ -4,6 +4,7 @@
 - 状态：一期已实现（分支 `feature/miniapp-factory`；截图动作为 `NEEDS_UI` 桩，Wi‑Fi 在多数机型为 `UNSUPPORTED`；计划见 docs/superpowers/plans/2026-07-11-miniapp-factory.md）
 - 2026-11-16：完成稳定性加固与 ViewModel 状态层改造（重复接收器、执行器异常兜底、流式导出、本机签名、Room schema、日程单测），变更清单见 `需求.md`
 - 2026-11-16（第二轮）：运行会话取消作用域、日志保留与索引迁移、配置同步原子替换、JSON 容错与动作保存校验、快捷方式清理，详见 `需求.md`
+- 2026-11-16（第三轮）：后台触发有界排队；独立包支持定时 / 静态系统事件后台触发（AlarmManager + WorkManager）；导出存储预检与失败清理，详见 `需求.md`
 - 工程：`D:\web\android`（现有 Kotlin + Jetpack Compose 模板工程）
 - 选定方案：方案一 — 动作插件 + 本地编排引擎
 
@@ -205,6 +206,14 @@ ActionHandler.execute(context, params) -> ActionResult
 2. 导出流程：序列化 MiniApp → 写入模板 assets → 组装包 → 签名 → 分享/保存
 3. 安装后在桌面显示独立应用名与图标
 4. 与一期共用 schema 与 Action 实现（Runner 依赖同一 engine/platform 库模块更佳）
+
+### 9.1 独立包后台触发（2026-11-16 补充）
+
+- 定时（间隔）、每日、每周、单次、时段循环：AlarmManager 单次闹钟链，触发后计算下一次；开机、应用更新、改时间/时区自动重排
+- 充电、解锁、耳机、飞行模式、电量等静态系统事件：Manifest 接收器匹配 `event` 触发器
+- 亮屏/灭屏（需动态注册）与「打开指定 App」（需 UsageStats）：仍只在工厂内生效
+- 触发执行走 WorkManager（约 10 分钟窗口），避免广播接收器 10 秒超时；后台播放音视频、拉起其他 App 仍受系统限制
+- 配置同步或应用更新后重新布防触发器；「更新应用」会清理旧的同步覆盖，确保新安装包内嵌配置生效
 
 一期过渡：桌面快捷方式 + deep link 打开宿主并执行指定小应用。
 

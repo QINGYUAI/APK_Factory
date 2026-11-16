@@ -25,7 +25,7 @@ import kotlin.coroutines.coroutineContext
 
 /**
  * 仅在已授予使用情况访问、且存在启用中的 appOpened 触发时轮询 [UsageStatsManager.queryEvents]。
- * 检测到前台包名变化并匹配触发器的 packageName 后调用 [MiniAppRunner.run]。
+ * 检测到前台包名变化并匹配触发器的 packageName 后调用 [MiniAppRunner.runQueued]。
  */
 class AppOpenMonitor(
     private val app: Application,
@@ -115,7 +115,7 @@ class AppOpenMonitor(
 
             val miniAppIds = mapping[latestForeground] ?: continue
             for (miniAppId in miniAppIds) {
-                runner.run(miniAppId, TriggerTypes.APP_OPENED)
+                runner.runQueued(miniAppId, TriggerTypes.APP_OPENED)
             }
         }
     }

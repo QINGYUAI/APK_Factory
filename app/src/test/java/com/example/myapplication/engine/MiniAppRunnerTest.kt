@@ -14,6 +14,7 @@ import com.example.myapplication.domain.ActionHandler
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.ActionStep
 import com.example.myapplication.domain.model.MiniApp
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -99,6 +100,7 @@ class MiniAppRunnerTest {
         fake: Fake,
         handler: ActionHandler,
         debounceMs: Long = 3000,
+        maxQueued: Int = MiniAppRunner.DEFAULT_MAX_QUEUED,
     ): MiniAppRunner {
         val registry = ActionRegistry().apply { register(handler) }
         return MiniAppRunner(
@@ -107,6 +109,7 @@ class MiniAppRunnerTest {
             executor = ActionExecutor(registry),
             debouncer = Debouncer(debounceMs),
             onStopMedia = {},
+            maxQueued = maxQueued,
         )
     }
 
@@ -161,6 +164,61 @@ class MiniAppRunnerTest {
         withTimeout(2_000) { first.join() }
 
         assertNull(second)
+    }
+
+    @Test
+    fun queuedRun_waitsInsteadOfSkipping() = runBlocking {
+        val fake = Fake()
+        fake.repo.save(app("a"))
+        fake.repo.save(app("b"))
+        val runner = runner(fake, SlowHandler(delayMs = 300))
+
+        val first = launch { runner.run("a", "manual") }
+        delay(100)
+        val queued = async { runner.runQueued("b", "schedule") }
+
+        withTimeout(5_000) { first.join() }
+        val report = withTimeout(5_000) { queued.await() }
+
+        assertNotNull(report)
+        assertTrue(report!!.success)
+        assertEquals(2, fake.logDao.logs.size)
+        assertNull(runner.runningId.value)
+    }
+
+    @Test
+    fun queuedRun_dedupesSameTriggerWhilePending() = runBlocking {
+        val fake = Fake()
+        fake.repo.save(app("a"))
+        fake.repo.save(app("b"))
+        val runner = runner(fake, SlowHandler(delayMs = 300))
+
+        val first = launch { runner.run("a", "manual") }
+        delay(100)
+        val queued = async { runner.runQueued("b", "event") }
+        delay(50)
+        val duplicate = withTimeout(500) { runner.runQueued("b", "event") }
+
+        assertNull(duplicate)
+        assertNotNull(withTimeout(5_000) { queued.await() })
+        withTimeout(5_000) { first.join() }
+    }
+
+    @Test
+    fun queuedRun_dropsWhenQueueIsFull() = runBlocking {
+        val fake = Fake()
+        listOf("a", "b", "c").forEach { fake.repo.save(app(it)) }
+        val runner = runner(fake, SlowHandler(delayMs = 300), maxQueued = 1)
+
+        val first = launch { runner.run("a", "manual") }
+        delay(100)
+        val queued = async { runner.runQueued("b", "event") }
+        delay(50)
+        val overflow = withTimeout(500) { runner.runQueued("c", "event") }
+
+        assertNull(overflow)
+        assertNotNull(withTimeout(5_000) { queued.await() })
+        withTimeout(5_000) { first.join() }
     }
 
     @Test

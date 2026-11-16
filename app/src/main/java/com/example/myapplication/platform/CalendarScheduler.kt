@@ -145,7 +145,7 @@ class CalendarAlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        ServiceLocator.runner.run(miniAppId, trigger.type)
+        ServiceLocator.runner.runQueued(miniAppId, trigger.type)
 
         if (trigger.type == TriggerTypes.ONCE_AT) {
             val updated = app.copy(

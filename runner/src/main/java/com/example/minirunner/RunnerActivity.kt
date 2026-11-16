@@ -5,9 +5,13 @@
 package com.example.minirunner
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -61,10 +65,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.example.myapplication.domain.ActionResult
 import com.example.myapplication.domain.model.MiniApp
+import com.example.myapplication.domain.model.Trigger
+import com.example.myapplication.domain.model.TriggerTypes
 import com.example.myapplication.engine.RunReport
 import com.example.myapplication.engine.StepOutcome
 import com.example.myapplication.platform.MiniAppConfigStore
 import com.example.myapplication.platform.RuntimeEffectTracker
+import com.example.myapplication.platform.ScheduleTimeMath
+import com.example.myapplication.platform.ScheduleValidation
 import com.example.myapplication.platform.media.MediaPlaybackController
 import com.example.myapplication.platform.media.MediaPlaybackUiState
 import com.example.myapplication.ui.editor.actionIcon
@@ -164,6 +172,15 @@ private fun RunnerScreen(miniApp: MiniApp) {
             torchOn = torchOn,
         )
     }
+    val scheduledTriggers = remember(miniApp) {
+        miniApp.triggers.filter {
+            it.enabled && (TriggerTypes.isCalendarType(it.type) || it.type == TriggerTypes.SCHEDULE)
+        }
+    }
+    val eventTriggerCount = remember(miniApp) {
+        miniApp.triggers.count { it.enabled && it.type == TriggerTypes.EVENT }
+    }
+    val exactAlarmAllowed = StandaloneTriggerScheduler.canScheduleExactAlarms(context)
 
     fun stopRunningFeatures() {
         val targets = activeEffects.map { it.kind }
@@ -278,6 +295,42 @@ private fun RunnerScreen(miniApp: MiniApp) {
 
         item(key = "media") {
             MediaControlBar()
+        }
+
+        if (scheduledTriggers.isNotEmpty() || eventTriggerCount > 0) {
+            item(key = "triggers") {
+                Panel {
+                    Text("后台触发", style = MaterialTheme.typography.titleMedium, color = OnBg)
+                    scheduledTriggers.forEach { trigger ->
+                        Text(
+                            text = "${triggerTitle(trigger)} · ${triggerPreview(trigger)}",
+                            color = Muted,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                    if (eventTriggerCount > 0) {
+                        Text(
+                            text = "系统事件触发：$eventTriggerCount 个（亮屏/灭屏在独立包中不可用）",
+                            color = Muted,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                    val needsExactAlarm = scheduledTriggers.any { TriggerTypes.isCalendarType(it.type) }
+                    if (needsExactAlarm && !exactAlarmAllowed) {
+                        Text(
+                            text = "未授予「闹钟和提醒」权限，定时将使用系统近似时间",
+                            color = Warn,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        Button(
+                            onClick = { openExactAlarmSettings(context) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("去授权精确闹钟")
+                        }
+                    }
+                }
+            }
         }
 
         item(key = "active-effects") {
@@ -494,4 +547,38 @@ private fun StepCard(index: Int, outcome: StepOutcome) {
             active = ok,
         )
     }
+}
+
+private fun triggerTitle(trigger: Trigger): String = when (trigger.type) {
+    TriggerTypes.SCHEDULE -> "间隔触发"
+    TriggerTypes.DAILY_AT -> "每天定时"
+    TriggerTypes.ONCE_AT -> "单次定时"
+    TriggerTypes.WEEKLY -> "每周定时"
+    TriggerTypes.WINDOW_REPEAT -> "时段内循环"
+    else -> trigger.type
+}
+
+private fun triggerPreview(trigger: Trigger): String = when (trigger.type) {
+    TriggerTypes.SCHEDULE -> {
+        val minutes = (trigger.params["intervalMinutes"]?.toLongOrNull() ?: 15L)
+            .coerceIn(1L, 24L * 60L)
+        "每 $minutes 分钟"
+    }
+    TriggerTypes.ONCE_AT -> {
+        if (ScheduleTimeMath.nextFireMillis(trigger) == null) "已过期或已触发"
+        else ScheduleValidation.nextFirePreview(trigger)
+    }
+    else -> ScheduleValidation.nextFirePreview(trigger)
+}
+
+private fun openExactAlarmSettings(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+    val intent = Intent(
+        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+        Uri.parse("package:${context.packageName}"),
+    )
+    runCatching { context.startActivity(intent) }
+        .onFailure {
+            Toast.makeText(context, "请在系统设置中允许「闹钟和提醒」", Toast.LENGTH_LONG).show()
+        }
 }

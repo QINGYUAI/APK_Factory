@@ -10,6 +10,7 @@ import com.example.myapplication.domain.model.MiniApp
 import com.example.myapplication.domain.model.TriggerTypes
 import com.example.myapplication.platform.MediaUriHelper
 import com.example.myapplication.platform.ScheduleValidation
+import com.example.myapplication.platform.SystemEventCatalog
 import com.example.myapplication.ui.editor.actionTitleZh
 import java.io.File
 
@@ -63,14 +64,31 @@ object ExportPreflight {
             }
         }
 
-        val autoTriggers = miniApp.triggers.filter {
-            it.enabled && it.type != TriggerTypes.MANUAL && it.type != TriggerTypes.HOST_OPENED
+        val factoryOnlyTriggers = miniApp.triggers.filter { trigger ->
+            if (!trigger.enabled) return@filter false
+            when (trigger.type) {
+                TriggerTypes.APP_OPENED -> true
+                TriggerTypes.EVENT -> {
+                    val action = trigger.params["action"].orEmpty()
+                    action.isNotBlank() && SystemEventCatalog.of(action)?.dynamicOnly == true
+                }
+                else -> false
+            }
         }
-        if (autoTriggers.isNotEmpty()) {
-            warnings += "独立安装包目前以手动运行为主；定时/系统事件等触发请在「应用工厂」内使用。改动作可优先用「同步配置」，换图标/引擎再用「更新应用」"
+        if (factoryOnlyTriggers.isNotEmpty()) {
+            warnings += "「打开指定 App」「亮屏/灭屏」触发仅在应用工厂内生效；独立包已支持定时与开关机、充电等系统事件触发"
+        }
+        val hasBackgroundTriggers = miniApp.triggers.any { trigger ->
+            trigger.enabled && when (trigger.type) {
+                TriggerTypes.SCHEDULE, TriggerTypes.EVENT -> true
+                else -> TriggerTypes.isCalendarType(trigger.type)
+            }
+        }
+        if (hasBackgroundTriggers) {
+            warnings += "独立包安装后请先打开一次，系统才会允许其后台触发；定时触发需允许「闹钟和提醒」，未授权时使用近似时间，个别机型还需允许自启动/后台运行；后台播放音视频、打开其他 App 可能被系统限制"
         }
         if (miniApp.runOnHostOpen) {
-            warnings += "「打开本应用时自动运行」仅对工厂生效，不会带到独立安装包"
+            warnings += "「打开本应用时自动运行」在工厂内按配置执行；独立包每次打开都会自动运行一次动作链"
         }
         warnings += "独立包使用本机专属签名：卸载「应用工厂」或清除其数据后，将无法覆盖更新已安装的小应用"
 

@@ -30,10 +30,12 @@ class ConfigSyncActivity : Activity() {
         }
         val ok = runCatching { applyZip(uri) }
         if (ok.isSuccess) {
+            // 触发器可能随配置变化：立刻按新配置重排，并允许一次性触发器按新时间重新布防
+            runCatching { StandaloneTriggerScheduler.resync(this, resetOnceFired = true) }
             val name = intent?.getStringExtra(ConfigSyncContract.EXTRA_MINI_APP_NAME).orEmpty()
             finishWithToast(
-                if (name.isBlank()) "配置已同步，请重新打开小应用生效"
-                else "「$name」配置已同步，请重新打开小应用生效",
+                if (name.isBlank()) "配置已同步，后台触发已更新"
+                else "「$name」配置已同步，后台触发已更新",
             )
         } else {
             finishWithToast("同步失败：${ok.exceptionOrNull()?.message ?: "未知错误"}")

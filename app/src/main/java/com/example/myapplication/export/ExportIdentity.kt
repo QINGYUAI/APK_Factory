@@ -16,6 +16,8 @@ object ExportIdentity {
         "$TEMPLATE_PACKAGE.RunnerApplication",
         "$TEMPLATE_PACKAGE.RunnerActivity",
         "$TEMPLATE_PACKAGE.ConfigSyncActivity",
+        "$TEMPLATE_PACKAGE.StandaloneAlarmReceiver",
+        "$TEMPLATE_PACKAGE.StandaloneSystemEventReceiver",
     )
 
     /**

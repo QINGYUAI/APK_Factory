@@ -20,7 +20,7 @@ class ScheduleMiniAppWorker(
 
     override suspend fun doWork(): Result {
         val miniAppId = inputData.getString(KEY_MINI_APP_ID) ?: return Result.failure()
-        ServiceLocator.runner.run(miniAppId, TriggerTypes.SCHEDULE)
+        ServiceLocator.runner.runQueued(miniAppId, TriggerTypes.SCHEDULE)
         return Result.success()
     }
 
