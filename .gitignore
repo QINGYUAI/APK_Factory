@@ -13,6 +13,7 @@ captures/
 # Local SDK / secrets
 local.properties
 **/local.properties
+keystore.properties
 *.keystore
 *.jks
 *.p12
